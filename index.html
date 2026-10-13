@@ -298,11 +298,8 @@
                     </div>
                     <div class="form-group">
                         <label for="cust-phone">M-Pesa Phone Number</label>
-                        <div class="phone-input-wrapper">
-                            <span class="phone-prefix">+254</span>
-                            <input type="tel" id="cust-phone" name="phone" placeholder="712345678" required pattern="[0-9]{9}" maxlength="9" autocomplete="tel-local">
-                        </div>
-                        <span class="form-hint">Enter 9 digits after 254 (e.g. 712345678)</span>
+                        <input type="tel" id="cust-phone" name="phone" placeholder="07XXXXXXXX or 01XXXXXXXX" required maxlength="13" autocomplete="tel">
+                        <span class="form-hint">Enter your Safaricom M-Pesa number (e.g. 0712345678 or 0112345678)</span>
                         <span class="form-error" id="error-phone"></span>
                     </div>
                     <button type="submit" id="btn-pay" class="btn btn-primary btn-block btn-pay">

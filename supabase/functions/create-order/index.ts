@@ -30,7 +30,7 @@ serve(async (req: Request) => {
 
     if (!/^254(7|1)\d{8}$/.test(cleanPhone)) {
       return new Response(
-        JSON.stringify({ success: false, message: "Invalid Kenyan phone number format. Must start with 2547 or 2541." }),
+        JSON.stringify({ success: false, message: "Invalid phone number. Please enter a valid Safaricom number starting with 07 or 01 (e.g. 0712345678 or 0112345678)." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

@@ -371,23 +371,28 @@ checkoutForm.addEventListener("submit", async (e) => {
     valid = false;
   }
 
-  // Kenya phone validation: 9 digits after +254 (e.g. 712345678 or 112345678)
-  if (phone.startsWith("0")) phone = phone.substring(1);
-  if (phone.startsWith("254")) phone = phone.substring(3);
+  // Kenyan phone normalization: accept 07..., 01..., 254..., 7..., 1...
+  let normalizedPhone = phone;
+  if (normalizedPhone.startsWith("254")) {
+    normalizedPhone = "0" + normalizedPhone.substring(3);
+  }
+  if ((normalizedPhone.startsWith("7") || normalizedPhone.startsWith("1")) && normalizedPhone.length === 9) {
+    normalizedPhone = "0" + normalizedPhone;
+  }
 
-  if (!/^(7|1)[0-9]{8}$/.test(phone)) {
-    errPhone.textContent = "Enter valid 9 digits (e.g. 712345678 or 112345678)";
+  // Validate all Kenyan mobile prefixes (07XX, 01XX) - 10 digits total
+  if (!/^(07|01)\d{8}$/.test(normalizedPhone)) {
+    errPhone.textContent = "Enter a valid Safaricom number (e.g. 0712345678 or 0112345678)";
     valid = false;
   }
 
   if (!valid) return;
 
-  const fullPhone = "254" + phone;
   const ticket = TICKETS.find(t => t.id === selectedTicketId);
 
   // Switch to processing modal
   switchStep("processing");
-  document.getElementById("processing-status").textContent = "Sending M-Pesa STK push to " + fullPhone + "...";
+  document.getElementById("processing-status").textContent = "Sending M-Pesa STK push to " + normalizedPhone + "...";
 
   try {
     // REAL CALL TO SUPABASE EDGE FUNCTION
@@ -399,7 +404,7 @@ checkoutForm.addEventListener("submit", async (e) => {
         quantity: selectedQuantity,
         customer_name: name,
         customer_email: email,
-        phone_number: fullPhone
+        phone_number: normalizedPhone
       })
     });
 
@@ -416,7 +421,7 @@ checkoutForm.addEventListener("submit", async (e) => {
     startPollingPayment(data.order_reference, {
       name,
       email,
-      phone: fullPhone,
+      phone: normalizedPhone,
       ticketName: ticket.name,
       category: ticket.category,
       quantity: selectedQuantity,
