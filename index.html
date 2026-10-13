@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tiko — Party for Less | Ne-Yo Live in Nairobi</title>
+    <meta name="description" content="Get discounted tickets for Ne-Yo Live in Nairobi — One Night Only Brunch Edition. Save up to KSh 40,000. Affordable entertainment, more vibes, less spend.">
+    <meta name="keywords" content="Ne-Yo Kenya, Ne-Yo Nairobi concert, discounted tickets Kenya, Tiko tickets, One Night Only Brunch Edition">
+    <meta property="og:title" content="Tiko — Party for Less | Ne-Yo Live in Nairobi">
+    <meta property="og:description" content="Discounted tickets for Ne-Yo Live in Concert. Save up to KSh 40,000 on Gold & Platinum tickets.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="assets/logo.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="icon" href="assets/logo.png" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <!-- PDF Generation & QR Code Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+    <!-- ==================== FULL-SCREEN SPLASH SCREEN ==================== -->
+    <div id="splash-screen" class="splash-screen" aria-hidden="true">
+        <div class="splash-backdrop"></div>
+        <div class="splash-content">
+            <div class="splash-logo-container">
+                <img src="assets/logo.png" alt="Tiko" class="splash-logo">
+                <div class="splash-glow"></div>
+            </div>
+            <p class="splash-slogan">PARTY FOR LESS</p>
+            <p class="splash-sub">Affordable entertainment — more vibes, less spend</p>
+            <div class="splash-loader-bar">
+                <div class="splash-loader-fill"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== NAVBAR ==================== -->
+    <nav id="navbar" class="navbar">
+        <div class="container navbar-inner">
+            <a href="#" class="logo" aria-label="Tiko Home">
+                <img src="assets/logo.png" alt="Tiko Logo" class="logo-img">
+            </a>
+            <div class="nav-links">
+                <a href="#tickets" class="nav-link">Tickets</a>
+                <a href="#how-it-works" class="nav-link">How It Works</a>
+                <a href="#faq" class="nav-link">FAQ</a>
+            </div>
+            <a href="#tickets" class="btn btn-primary btn-sm nav-cta">Get Tickets</a>
+            <button id="mobile-menu-btn" class="mobile-menu-btn" aria-label="Toggle menu">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+        <div id="mobile-menu" class="mobile-menu">
+            <a href="#tickets" class="mobile-link">Tickets</a>
+            <a href="#how-it-works" class="mobile-link">How It Works</a>
+            <a href="#faq" class="mobile-link">FAQ</a>
+            <a href="#tickets" class="btn btn-primary mobile-cta">Get Tickets</a>
+        </div>
+    </nav>
+
+    <!-- ==================== HERO ==================== -->
+    <header id="hero" class="hero">
+        <div class="hero-bg"></div>
+        <div class="hero-overlay"></div>
+        <div class="hero-particles" id="particles"></div>
+        <div class="container hero-content">
+            <div class="hero-badge">
+                <span class="badge-dot"></span>
+                <span>Limited Time Offer</span>
+            </div>
+            <h1 class="hero-title">
+                <span class="hero-title-line">NE-YO</span>
+                <span class="hero-title-sub">Live in Nairobi</span>
+            </h1>
+            <p class="hero-tagline">Party for Less</p>
+            <p class="hero-desc">Affordable entertainment — more vibes, less spend.<br>Save up to <strong>KSh 40,000</strong> on your tickets.</p>
+            <div class="hero-meta">
+                <div class="meta-item">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                    <div>
+                        <span class="meta-label">Date</span>
+                        <span class="meta-value">Tue, 20 Oct 2026</span>
+                    </div>
+                </div>
+                <div class="meta-item">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                    <div>
+                        <span class="meta-label">Time</span>
+                        <span class="meta-value">3:00 PM — 11:00 PM</span>
+                    </div>
+                </div>
+                <div class="meta-item">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    <div>
+                        <span class="meta-label">Venue</span>
+                        <span class="meta-value">Ulinzi Sports Complex</span>
+                    </div>
+                </div>
+            </div>
+            <a href="#tickets" class="btn btn-glow hero-cta">
+                <span>View Ticket Offers</span>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17l10-10M7 7h10v10"/></svg>
+            </a>
+        </div>
+    </header>
+
+    <!-- ==================== COUNTDOWN ==================== -->
+    <section class="countdown-bar">
+        <div class="container countdown-inner">
+            <span class="countdown-label">Event starts in</span>
+            <div class="countdown-timer" id="countdown">
+                <div class="countdown-unit"><span id="cd-days">00</span><small>Days</small></div>
+                <div class="countdown-sep">:</div>
+                <div class="countdown-unit"><span id="cd-hours">00</span><small>Hours</small></div>
+                <div class="countdown-sep">:</div>
+                <div class="countdown-unit"><span id="cd-mins">00</span><small>Min</small></div>
+                <div class="countdown-sep">:</div>
+                <div class="countdown-unit"><span id="cd-secs">00</span><small>Sec</small></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================== TICKETS ==================== -->
+    <section id="tickets" class="tickets-section">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-badge">🎫 Ticket Offers</span>
+                <h2 class="section-title">Grab Your Tickets at Discounted Prices</h2>
+                <p class="section-desc">Tiko is the ultimate go-to for on-offer, discounted tickets — the perfect way to enjoy entertainment.</p>
+            </div>
+
+            <!-- Category Tabs -->
+            <div class="ticket-tabs" role="tablist">
+                <button class="tab-btn active" data-category="all" role="tab" aria-selected="true">All Tickets</button>
+                <button class="tab-btn" data-category="gold" role="tab" aria-selected="false">Gold</button>
+                <button class="tab-btn" data-category="platinum" role="tab" aria-selected="false">Platinum</button>
+            </div>
+
+            <!-- Ticket Grid -->
+            <div class="ticket-grid" id="ticket-grid">
+                <!-- Cards rendered by JS -->
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================== HOW IT WORKS ==================== -->
+    <section id="how-it-works" class="how-section">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-badge">✨ Simple Process</span>
+                <h2 class="section-title">How It Works</h2>
+            </div>
+            <div class="steps-grid">
+                <div class="step-card">
+                    <div class="step-number">1</div>
+                    <div class="step-icon">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 8a2 2 0 012-2h14a2 2 0 012 2v2a2 2 0 000 4v2a2 2 0 01-2 2H5a2 2 0 01-2-2v-2a2 2 0 000-4V8z"/><path d="M9 6v12" stroke-dasharray="2 2"/></svg>
+                    </div>
+                    <h3>Choose Your Ticket</h3>
+                    <p>Browse our discounted Gold and Platinum ticket options.</p>
+                </div>
+                <div class="step-card">
+                    <div class="step-number">2</div>
+                    <div class="step-icon">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4-4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+                    </div>
+                    <h3>Fill Your Details</h3>
+                    <p>Enter your name, email, and M-Pesa phone number.</p>
+                </div>
+                <div class="step-card">
+                    <div class="step-number">3</div>
+                    <div class="step-icon">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg>
+                    </div>
+                    <h3>Pay via M-Pesa</h3>
+                    <p>Receive an STK push on your phone and enter your PIN.</p>
+                </div>
+                <div class="step-card">
+                    <div class="step-number">4</div>
+                    <div class="step-icon">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>
+                    </div>
+                    <h3>Get Confirmation</h3>
+                    <p>Payment confirmed. Your ticket details are secured!</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================== FAQ ==================== -->
+    <section id="faq" class="faq-section">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-badge">❓ FAQ</span>
+                <h2 class="section-title">Frequently Asked Questions</h2>
+            </div>
+            <div class="faq-list">
+                <details class="faq-item">
+                    <summary class="faq-q">Are these tickets genuine?</summary>
+                    <p class="faq-a">Yes! We are an authorized reseller offering discounted tickets for the Ne-Yo One Night Only Brunch Edition concert at Ulinzi Sports Complex, Nairobi.</p>
+                </details>
+                <details class="faq-item">
+                    <summary class="faq-q">How do I pay?</summary>
+                    <p class="faq-a">We use M-Pesa via our secure payment provider FinoQ (PayHero). After selecting your ticket, you'll receive an STK push on your phone. Simply enter your M-Pesa PIN to complete payment.</p>
+                </details>
+                <details class="faq-item">
+                    <summary class="faq-q">When will I receive my ticket?</summary>
+                    <p class="faq-a">Once your M-Pesa payment is confirmed, you'll receive a confirmation on the website immediately. Your ticket details will be sent to your email.</p>
+                </details>
+                <details class="faq-item">
+                    <summary class="faq-q">What's the Gold Couple/Friends Package?</summary>
+                    <p class="faq-a">It's a discounted bundle of 2 Gold tickets at KSh 15,000 instead of the regular KSh 20,000 — perfect for couples or friends attending together.</p>
+                </details>
+                <details class="faq-item">
+                    <summary class="faq-q">What's the Platinum Green Area?</summary>
+                    <p class="faq-a">The Platinum section offers premium seating in the Green Area with options for individual seats (1), 4-seater tables, or 8-seater tables — all at discounted prices.</p>
+                </details>
+                <details class="faq-item">
+                    <summary class="faq-q">Can I get a refund?</summary>
+                    <p class="faq-a">All ticket sales are final. Please make sure you select the correct ticket type and quantity before completing your purchase.</p>
+                </details>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================== FOOTER ==================== -->
+    <footer class="footer">
+        <div class="container footer-inner">
+            <div class="footer-brand">
+                <img src="assets/logo.png" alt="Tiko Logo" class="footer-logo">
+                <p class="footer-slogan">Party for Less</p>
+                <p class="footer-tagline">Affordable entertainment — more vibes, less spend.</p>
+            </div>
+            <div class="footer-links">
+                <h4>Quick Links</h4>
+                <a href="#tickets">Tickets</a>
+                <a href="#how-it-works">How It Works</a>
+                <a href="#faq">FAQ</a>
+            </div>
+            <div class="footer-links">
+                <h4>Event</h4>
+                <a href="https://ticketyetu.com/events/one-night-only-brunch-edition-w6flbQ" target="_blank" rel="noopener">Official Event Page</a>
+                <a href="#">Ulinzi Sports Complex</a>
+                <a href="#">Tue, 20 Oct 2026</a>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <div class="container">
+                <p>&copy; 2026 Tiko. All rights reserved. Payments secured by <a href="https://www.m-pesa.africa" target="_blank" rel="noopener">M-PESA</a>.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ==================== CHECKOUT MODAL ==================== -->
+    <div id="checkout-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal">
+            <button id="modal-close" class="modal-close" aria-label="Close checkout">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+
+            <!-- Step 1: Order Summary -->
+            <div id="step-summary" class="modal-step active">
+                <h2 id="modal-title" class="modal-title">Order Summary</h2>
+                <div id="order-summary" class="order-summary">
+                    <!-- Filled by JS -->
+                </div>
+                <div class="order-total">
+                    <span>Total</span>
+                    <span id="order-total-price">KSh 0</span>
+                </div>
+                <div class="order-savings">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>
+                    <span>You save <strong id="order-savings-amount">KSh 0</strong></span>
+                </div>
+                <button id="btn-to-details" class="btn btn-primary btn-block">Continue to Details</button>
+            </div>
+
+            <!-- Step 2: Customer Details -->
+            <div id="step-details" class="modal-step">
+                <button class="modal-back" id="btn-back-summary">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                    Back
+                </button>
+                <h2 class="modal-title">Your Details</h2>
+                <form id="checkout-form" class="checkout-form" novalidate>
+                    <div class="form-group">
+                        <label for="cust-name">Full Name</label>
+                        <input type="text" id="cust-name" name="name" placeholder="John Doe" required autocomplete="name">
+                        <span class="form-error" id="error-name"></span>
+                    </div>
+                    <div class="form-group">
+                        <label for="cust-email">Email Address</label>
+                        <input type="email" id="cust-email" name="email" placeholder="john@example.com" required autocomplete="email">
+                        <span class="form-error" id="error-email"></span>
+                    </div>
+                    <div class="form-group">
+                        <label for="cust-phone">M-Pesa Phone Number</label>
+                        <div class="phone-input-wrapper">
+                            <span class="phone-prefix">+254</span>
+                            <input type="tel" id="cust-phone" name="phone" placeholder="712345678" required pattern="[0-9]{9}" maxlength="9" autocomplete="tel-local">
+                        </div>
+                        <span class="form-hint">Enter 9 digits after 254 (e.g. 712345678)</span>
+                        <span class="form-error" id="error-phone"></span>
+                    </div>
+                    <button type="submit" id="btn-pay" class="btn btn-primary btn-block btn-pay">
+                        <svg class="mpesa-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg>
+                        Pay <span id="btn-pay-amount">KSh 0</span> via M-Pesa
+                    </button>
+                </form>
+            </div>
+
+            <!-- Step 3: Processing -->
+            <div id="step-processing" class="modal-step">
+                <div class="processing-content">
+                    <div class="processing-spinner"></div>
+                    <h2 class="modal-title">Processing Payment</h2>
+                    <p class="processing-text">An M-Pesa STK push has been sent to your phone.<br><strong>Please enter your PIN to complete payment.</strong></p>
+                    <div class="processing-status" id="processing-status">Waiting for payment confirmation...</div>
+                </div>
+            </div>
+
+            <!-- Step 4: Success -->
+            <div id="step-success" class="modal-step">
+                <div class="success-content">
+                    <div class="success-icon">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg>
+                    </div>
+                    <h2 class="modal-title">Payment Successful! 🎉</h2>
+                    <p class="success-text">Your tickets have been confirmed. Check your email for details.</p>
+                    <div id="success-details" class="success-details">
+                        <!-- Filled by JS -->
+                    </div>
+                    <button id="btn-download-pdf" class="btn btn-glow btn-block" style="margin-bottom: 10px;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        Download PDF Ticket
+                    </button>
+                    <button id="btn-done" class="btn btn-primary btn-block">Done</button>
+                </div>
+            </div>
+
+            <!-- Hidden container for QR rendering -->
+            <div id="qrcode-hidden" style="display: none;"></div>
+
+            <!-- Step: Error -->
+            <div id="step-error" class="modal-step">
+                <div class="error-content">
+                    <div class="error-icon">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>
+                    </div>
+                    <h2 class="modal-title">Payment Failed</h2>
+                    <p class="error-text" id="error-message">Something went wrong. Please try again.</p>
+                    <button id="btn-retry" class="btn btn-primary btn-block">Try Again</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== FLOATING CTA ==================== -->
+    <div id="floating-cta" class="floating-cta hidden">
+        <div class="floating-cta-inner">
+            <div class="floating-info">
+                <span class="floating-count" id="floating-count">0 tickets</span>
+                <span class="floating-total" id="floating-total">KSh 0</span>
+            </div>
+            <button id="floating-checkout-btn" class="btn btn-primary btn-sm">Checkout →</button>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
