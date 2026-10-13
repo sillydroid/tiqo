@@ -89,28 +89,38 @@ serve(async (req: Request) => {
       );
     }
 
-    // 6. Initiate PayHero / FinoQ STK Push
-    const payheroUsername = Deno.env.get("PAYHERO_API_USERNAME");
-    const payheroPassword = Deno.env.get("PAYHERO_API_PASSWORD");
-    const payheroChannelId = Deno.env.get("PAYHERO_CHANNEL_ID");
+    // 6. Initiate FinoQ / PayHero STK Push
+    const finoqUsername = Deno.env.get("FINOQ_API_KEY") || 
+                          Deno.env.get("FINOQ_API_USERNAME") || 
+                          Deno.env.get("PAYHERO_API_USERNAME") || "";
 
-    if (!payheroUsername || !payheroPassword || !payheroChannelId) {
-      console.warn("PayHero credentials missing. Order saved as pending.");
+    const finoqPassword = Deno.env.get("FINOQ_API_SECRET") || 
+                          Deno.env.get("FINOQ_API_PASSWORD") || 
+                          Deno.env.get("PAYHERO_API_PASSWORD") || "";
+
+    const finoqChannelId = Deno.env.get("FINOQ_CHANNEL_ID") || 
+                           Deno.env.get("PAYHERO_CHANNEL_ID") || "";
+
+    if (!finoqUsername || !finoqPassword || !finoqChannelId) {
+      console.warn("FinoQ credentials missing in Supabase Secrets.");
       return new Response(
         JSON.stringify({
-          success: true,
+          success: false,
           order_reference: orderRef,
           total_amount: totalAmount,
-          message: "Order created. Please configure PayHero credentials in Supabase to enable live STK Push."
+          message: "Payment credentials not configured yet. Please add FINOQ_API_KEY, FINOQ_API_SECRET, and FINOQ_CHANNEL_ID to your Supabase Edge Function Secrets."
         }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const authHeader = "Basic " + btoa(`${payheroUsername}:${payheroPassword}`);
+    const authHeader = "Basic " + btoa(`${finoqUsername}:${finoqPassword}`);
     const callbackUrl = `${supabaseUrl}/functions/v1/payment-callback`;
 
-    const payheroResponse = await fetch("https://backend.payhero.co.ke/api/v2/payments/initiate-stk-push", {
+    // FinoQ API endpoint
+    const finoqPhone = cleanPhone.startsWith("254") ? "0" + cleanPhone.substring(3) : cleanPhone;
+
+    const finoqResponse = await fetch("https://backend.payhero.co.ke/api/v2/payments", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -118,18 +128,31 @@ serve(async (req: Request) => {
       },
       body: JSON.stringify({
         amount: totalAmount,
-        phone_number: cleanPhone,
-        channel_id: Number(payheroChannelId),
-        provider: "mpesa",
+        phone_number: finoqPhone,
+        channel_id: Number(finoqChannelId),
+        provider: "m-pesa",
         external_reference: orderRef,
         callback_url: callbackUrl
       })
     });
 
-    const payheroData = await payheroResponse.json();
+    const responseText = await finoqResponse.text();
+    let payheroData: any = {};
+    try {
+      payheroData = JSON.parse(responseText);
+    } catch {
+      payheroData = { message: responseText };
+    }
 
-    if (!payheroResponse.ok || payheroData.success === false) {
-      const errorMsg = payheroData.message || "Failed to initiate M-Pesa STK push via PayHero.";
+    console.log("FinoQ API HTTP Status:", finoqResponse.status, "Response:", responseText);
+
+    if (!finoqResponse.ok || payheroData.success === false || payheroData.error_code) {
+      let errorMsg = payheroData.error_message || payheroData.message || payheroData.error || responseText || "Failed to initiate M-Pesa STK push via FinoQ.";
+      
+      if (errorMsg.includes("Merchant Account Inactive")) {
+        errorMsg = "FinoQ Notice: Your Merchant Account on business.finoq.africa is currently Inactive. Please log in to business.finoq.africa to activate your account or linked channel #13999.";
+      }
+
       await supabase.from("orders").update({
         status: "failed",
         failure_reason: errorMsg
@@ -141,11 +164,12 @@ serve(async (req: Request) => {
       );
     }
 
-    // Save PayHero transaction reference
-    if (payheroData.reference) {
+    // Save FinoQ transaction reference
+    const transactionRef = payheroData.reference || payheroData.CheckoutRequestID || null;
+    if (transactionRef) {
       await supabase.from("orders").update({
-        payhero_reference: payheroData.reference,
-        channel_id: Number(payheroChannelId),
+        payhero_reference: transactionRef,
+        channel_id: Number(finoqChannelId),
         status: "processing"
       }).eq("order_reference", orderRef);
     }
@@ -154,7 +178,7 @@ serve(async (req: Request) => {
       JSON.stringify({
         success: true,
         order_reference: orderRef,
-        payhero_reference: payheroData.reference || null,
+        payhero_reference: transactionRef,
         message: "STK Push sent to customer phone successfully."
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
