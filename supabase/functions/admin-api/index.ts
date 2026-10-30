@@ -7,24 +7,21 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+// Password Hashing Helper
+async function hashPassword(password: string): Promise<string> {
+  const data = new TextEncoder().encode(password + "tiko_salt_2026");
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    // Verify Admin Authentication
-    const authHeader = req.headers.get("Authorization") || "";
-    const token = authHeader.replace(/^Bearer\s+/i, "").trim();
-    const adminKey = Deno.env.get("ADMIN_API_KEY") || "tiko_admin_secret_2026";
-
-    if (!token || token !== adminKey) {
-      return new Response(
-        JSON.stringify({ success: false, message: "Unauthorized: Invalid or missing Admin API Key." }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -32,15 +29,315 @@ serve(async (req: Request) => {
     const body = await req.json();
     const { action } = body;
 
-    // ACTION: LOGIN / AUTH CHECK
-    if (action === "login") {
+    // =========================================================================
+    // ACTION: ADMIN LOGIN (Email & Password OR Master API Key)
+    // =========================================================================
+    if (action === "admin-login" || action === "login") {
+      const { email, password, key } = body;
+
+      // 1. Email & Password Login
+      if (email && password) {
+        const cleanEmail = email.trim().toLowerCase();
+        const inputHash = await hashPassword(password);
+
+        const { data: user, error: userErr } = await supabase
+          .from("admin_users")
+          .select("id, name, email, password_hash, role, is_active")
+          .eq("email", cleanEmail)
+          .maybeSingle();
+
+        if (userErr || !user) {
+          return new Response(
+            JSON.stringify({ success: false, message: "Invalid email or password." }),
+            { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        if (!user.is_active) {
+          return new Response(
+            JSON.stringify({ success: false, message: "This admin account has been disabled." }),
+            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        if (user.password_hash !== inputHash) {
+          return new Response(
+            JSON.stringify({ success: false, message: "Invalid email or password." }),
+            { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // Generate token encoding user id
+        const sessionToken = btoa(JSON.stringify({ id: user.id, email: user.email, ts: Date.now() }));
+
+        await supabase.from("audit_logs").insert({
+          action: "ADMIN_LOGIN",
+          entity_type: "admin_users",
+          entity_id: user.id,
+          performed_by: user.name,
+          details: { email: user.email }
+        });
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            token: sessionToken,
+            user: {
+              id: user.id,
+              name: user.name,
+              email: user.email,
+              role: user.role
+            }
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // 2. Fallback Master Key Login
+      const masterKey = Deno.env.get("ADMIN_API_KEY") || "tiko_admin_secret_2026";
+      const submittedKey = key || body.admin_key || "";
+      if (submittedKey === masterKey) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            token: masterKey,
+            user: {
+              id: "master",
+              name: "Super Admin",
+              email: "admin@tiko.ke",
+              role: "super_admin"
+            }
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       return new Response(
-        JSON.stringify({ success: true, message: "Admin authenticated successfully." }),
+        JSON.stringify({ success: false, message: "Invalid credentials. Please provide valid email and password." }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // =========================================================================
+    // AUTHENTICATION CHECK FOR ALL OTHER ACTIONS
+    // =========================================================================
+    const authHeader = req.headers.get("Authorization") || "";
+    const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+    const masterKey = Deno.env.get("ADMIN_API_KEY") || "tiko_admin_secret_2026";
+
+    let authenticatedAdmin = null;
+
+    if (token === masterKey) {
+      authenticatedAdmin = { id: "master", name: "Super Admin", email: "master@tiko.ke", role: "super_admin" };
+    } else if (token) {
+      try {
+        const decoded = JSON.parse(atob(token));
+        if (decoded?.id) {
+          const { data: u } = await supabase.from("admin_users").select("id, name, email, role, is_active").eq("id", decoded.id).single();
+          if (u && u.is_active) {
+            authenticatedAdmin = u;
+          }
+        }
+      } catch {
+        // invalid token
+      }
+    }
+
+    if (!authenticatedAdmin) {
+      return new Response(
+        JSON.stringify({ success: false, message: "Unauthorized: Invalid or expired session. Please log in again." }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // =========================================================================
+    // ACTION: ADMIN PROFILE & NAME EDIT
+    // =========================================================================
+    if (action === "update-admin-profile") {
+      const { user_id, name } = body;
+      const targetId = user_id || authenticatedAdmin.id;
+
+      if (!name || name.trim() === "") {
+        return new Response(
+          JSON.stringify({ success: false, message: "Name cannot be empty." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const { data: updated, error: upErr } = await supabase
+        .from("admin_users")
+        .update({ name: name.trim(), updated_at: new Date().toISOString() })
+        .eq("id", targetId)
+        .select("id, name, email, role")
+        .single();
+
+      if (upErr) throw upErr;
+
+      return new Response(
+        JSON.stringify({ success: true, message: "Profile name updated successfully.", user: updated }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    // =========================================================================
+    // ACTION: CHANGE ADMIN PASSWORD
+    // =========================================================================
+    if (action === "change-password") {
+      const { user_id, current_password, new_password } = body;
+      const targetId = user_id || authenticatedAdmin.id;
+
+      if (!new_password || new_password.length < 6) {
+        return new Response(
+          JSON.stringify({ success: false, message: "New password must be at least 6 characters long." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // If user is editing their own password, verify current password
+      if (current_password) {
+        const curHash = await hashPassword(current_password);
+        const { data: checkU } = await supabase.from("admin_users").select("password_hash").eq("id", targetId).single();
+        if (!checkU || checkU.password_hash !== curHash) {
+          return new Response(
+            JSON.stringify({ success: false, message: "Current password does not match." }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      }
+
+      const newHash = await hashPassword(new_password);
+      const { error: passErr } = await supabase
+        .from("admin_users")
+        .update({ password_hash: newHash, updated_at: new Date().toISOString() })
+        .eq("id", targetId);
+
+      if (passErr) throw passErr;
+
+      await supabase.from("audit_logs").insert({
+        action: "CHANGE_ADMIN_PASSWORD",
+        entity_type: "admin_users",
+        entity_id: targetId,
+        performed_by: authenticatedAdmin.name
+      });
+
+      return new Response(
+        JSON.stringify({ success: true, message: "Password updated successfully." }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // =========================================================================
+    // ACTION: LIST ALL ADMIN USERS
+    // =========================================================================
+    if (action === "list-admin-users") {
+      const { data: users, error: uErr } = await supabase
+        .from("admin_users")
+        .select("id, name, email, role, is_active, created_at, updated_at")
+        .order("created_at", { ascending: true });
+
+      if (uErr) throw uErr;
+
+      return new Response(
+        JSON.stringify({ success: true, users }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // =========================================================================
+    // ACTION: CREATE NEW ADMIN USER
+    // =========================================================================
+    if (action === "create-admin-user") {
+      const { name, email, password, role } = body;
+
+      if (!name || !email || !password) {
+        return new Response(
+          JSON.stringify({ success: false, message: "Missing required fields (Name, Email, Password)." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const cleanEmail = email.trim().toLowerCase();
+      const passHash = await hashPassword(password);
+
+      const { data: newUser, error: insErr } = await supabase
+        .from("admin_users")
+        .insert({
+          name: name.trim(),
+          email: cleanEmail,
+          password_hash: passHash,
+          role: role || "admin",
+          is_active: true
+        })
+        .select("id, name, email, role, is_active, created_at")
+        .single();
+
+      if (insErr) {
+        if (insErr.message.includes("unique")) {
+          return new Response(
+            JSON.stringify({ success: false, message: "An admin with this email address already exists." }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        throw insErr;
+      }
+
+      await supabase.from("audit_logs").insert({
+        action: "CREATE_ADMIN_USER",
+        entity_type: "admin_users",
+        entity_id: newUser.id,
+        details: { name: newUser.name, email: newUser.email, role: newUser.role },
+        performed_by: authenticatedAdmin.name
+      });
+
+      return new Response(
+        JSON.stringify({ success: true, message: "Admin user created successfully.", user: newUser }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // =========================================================================
+    // ACTION: DELETE ADMIN USER
+    // =========================================================================
+    if (action === "delete-admin-user") {
+      const { user_id } = body;
+
+      if (!user_id) {
+        return new Response(
+          JSON.stringify({ success: false, message: "Missing user_id parameter." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (user_id === authenticatedAdmin.id) {
+        return new Response(
+          JSON.stringify({ success: false, message: "You cannot delete your own admin account." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const { error: delErr } = await supabase
+        .from("admin_users")
+        .delete()
+        .eq("id", user_id);
+
+      if (delErr) throw delErr;
+
+      await supabase.from("audit_logs").insert({
+        action: "DELETE_ADMIN_USER",
+        entity_type: "admin_users",
+        entity_id: user_id,
+        performed_by: authenticatedAdmin.name
+      });
+
+      return new Response(
+        JSON.stringify({ success: true, message: "Admin user deleted successfully." }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // =========================================================================
     // ACTION: DASHBOARD STATS
+    // =========================================================================
     if (action === "dashboard-stats") {
       const { count: totalEvents } = await supabase.from("events").select("*", { count: "exact", head: true });
 
@@ -118,7 +415,9 @@ serve(async (req: Request) => {
       );
     }
 
+    // =========================================================================
     // ACTION: LIST ALL EVENTS (FOR ADMIN)
+    // =========================================================================
     if (action === "list-events") {
       const { data: events, error } = await supabase
         .from("events")
@@ -136,7 +435,9 @@ serve(async (req: Request) => {
       );
     }
 
+    // =========================================================================
     // ACTION: CREATE EVENT WITH TICKET CATEGORIES
+    // =========================================================================
     if (action === "create-event") {
       const {
         name,
@@ -220,7 +521,7 @@ serve(async (req: Request) => {
         entity_type: "events",
         entity_id: event.id,
         details: { name: event.name, categories_count: catInserts.length },
-        performed_by: "admin"
+        performed_by: authenticatedAdmin.name
       });
 
       return new Response(
@@ -229,7 +530,9 @@ serve(async (req: Request) => {
       );
     }
 
+    // =========================================================================
     // ACTION: EDIT / UPDATE EVENT (WITH TICKET CATEGORIES RECONCILIATION)
+    // =========================================================================
     if (action === "update-event") {
       const {
         event_id,
@@ -276,11 +579,10 @@ serve(async (req: Request) => {
 
       if (updateErr) throw updateErr;
 
-      // If ticket categories were provided in edit, reconcile them
+      // Reconcile ticket categories
       if (Array.isArray(ticket_categories) && ticket_categories.length > 0) {
         for (const cat of ticket_categories) {
           if (cat.id) {
-            // Update existing category
             await supabase.from("ticket_categories").update({
               name: cat.name.trim(),
               price: Number(cat.price),
@@ -289,7 +591,6 @@ serve(async (req: Request) => {
               updated_at: new Date().toISOString()
             }).eq("id", cat.id);
           } else {
-            // Insert new category
             const qty = Number(cat.total_quantity);
             await supabase.from("ticket_categories").insert({
               event_id: event_id,
@@ -310,7 +611,7 @@ serve(async (req: Request) => {
         entity_type: "events",
         entity_id: event_id,
         details: updateData,
-        performed_by: "admin"
+        performed_by: authenticatedAdmin.name
       });
 
       return new Response(
@@ -319,7 +620,9 @@ serve(async (req: Request) => {
       );
     }
 
+    // =========================================================================
     // ACTION: PUBLISH / UNPUBLISH EVENT
+    // =========================================================================
     if (action === "publish-event") {
       const { event_id, status } = body;
       const newStatus = status || "published";
@@ -337,7 +640,9 @@ serve(async (req: Request) => {
       );
     }
 
+    // =========================================================================
     // ACTION: DELETE / CANCEL EVENT
+    // =========================================================================
     if (action === "delete-event") {
       const { event_id } = body;
 
@@ -354,7 +659,9 @@ serve(async (req: Request) => {
       );
     }
 
+    // =========================================================================
     // ACTION: PROMO CODES
+    // =========================================================================
     if (action === "list-promos") {
       const { data: promos, error } = await supabase
         .from("promo_codes")
@@ -395,7 +702,9 @@ serve(async (req: Request) => {
       );
     }
 
+    // =========================================================================
     // ACTION: LIST ORDERS
+    // =========================================================================
     if (action === "list-orders") {
       const { event_id, status, limit, offset } = body;
 
@@ -425,7 +734,9 @@ serve(async (req: Request) => {
       );
     }
 
+    // =========================================================================
     // ACTION: AUDIT LOGS
+    // =========================================================================
     if (action === "list-audit-logs") {
       const { data: logs, error } = await supabase
         .from("audit_logs")

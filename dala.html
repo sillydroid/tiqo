@@ -23,7 +23,7 @@
             border-radius: var(--radius-lg);
             padding: 36px 32px;
             width: 100%;
-            max-width: 420px;
+            max-width: 440px;
             text-align: center;
             box-shadow: 0 20px 50px rgba(0,0,0,0.7), 0 0 30px var(--accent-purple-glow);
         }
@@ -195,17 +195,21 @@
                 Tiko Control Center
             </h2>
             <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 24px;">
-                Enter your Admin API Key to access the dashboard.
+                Sign in with your admin credentials to access the ticketing platform.
             </p>
 
             <form id="login-form">
                 <div class="form-group" style="text-align: left;">
-                    <label for="admin-key-input">Admin API Key</label>
-                    <input type="password" id="admin-key-input" placeholder="Enter key (default: tiko_admin_secret_2026)" required autocomplete="current-password">
+                    <label for="admin-email-input">Admin Email</label>
+                    <input type="email" id="admin-email-input" placeholder="vitupoaapp@gmail.com" required autocomplete="username">
+                </div>
+                <div class="form-group" style="text-align: left;">
+                    <label for="admin-password-input">Password</label>
+                    <input type="password" id="admin-password-input" placeholder="Enter your password" required autocomplete="current-password">
                     <span class="form-error" id="login-error"></span>
                 </div>
                 <button type="submit" id="btn-login" class="btn btn-primary btn-block">
-                    Unlock Dashboard →
+                    Sign In to Dashboard →
                 </button>
             </form>
             <div style="margin-top: 18px;">
@@ -226,6 +230,7 @@
                 </span>
             </div>
             <div style="display: flex; align-items: center; gap: 14px;">
+                <span id="current-admin-name-badge" style="font-size: 0.9rem; color: #a78bfa; font-weight: 700;">Admin</span>
                 <a href="./" target="_blank" class="btn btn-outline btn-sm">
                     Open Live Site ↗
                 </a>
@@ -250,6 +255,12 @@
                 </button>
                 <button class="admin-nav-btn" data-tab="tab-promos">
                     🏷️ Promo Codes
+                </button>
+                <button class="admin-nav-btn" data-tab="tab-admins">
+                    👥 Admin Users
+                </button>
+                <button class="admin-nav-btn" data-tab="tab-profile">
+                    👤 My Profile
                 </button>
                 <button class="admin-nav-btn" data-tab="tab-audit">
                     🔒 Security & Audit Log
@@ -509,7 +520,128 @@
                     </div>
                 </div>
 
-                <!-- 5. AUDIT LOGS TAB -->
+                <!-- 5. ADMIN USERS MANAGEMENT TAB -->
+                <div id="tab-admins" class="admin-tab-pane">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 24px;">
+                        <h2 style="font-family: var(--font-display); font-size: 1.7rem; font-weight: 800;">
+                            Admin Users Management
+                        </h2>
+                        <button id="btn-show-create-admin" class="btn btn-primary">
+                            + Add Admin User
+                        </button>
+                    </div>
+
+                    <!-- Create Admin Panel -->
+                    <div id="create-admin-panel" class="info-card" style="display:none; margin-bottom: 28px; border-color: rgba(112, 66, 248, 0.4);">
+                        <h3 style="font-family: var(--font-display); font-size: 1.25rem; font-weight: 800; margin-bottom: 16px; color:#a78bfa;">
+                            Create New Administrator
+                        </h3>
+                        <form id="create-admin-form">
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                <div class="form-group">
+                                    <label>Full Name *</label>
+                                    <input type="text" id="new-admin-name" placeholder="e.g. Jane Doe" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Email Address *</label>
+                                    <input type="email" id="new-admin-email" placeholder="jane@tiko.ke" required>
+                                </div>
+                            </div>
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                <div class="form-group">
+                                    <label>Password *</label>
+                                    <input type="password" id="new-admin-pass" placeholder="Min 6 characters" required minlength="6">
+                                </div>
+                                <div class="form-group">
+                                    <label>Role</label>
+                                    <select id="new-admin-role">
+                                        <option value="admin">Admin</option>
+                                        <option value="super_admin">Super Admin</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div style="display:flex; gap:12px; margin-top: 14px;">
+                                <button type="submit" class="btn btn-primary">Create Admin User</button>
+                                <button type="button" id="btn-cancel-admin" class="btn btn-outline">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Role</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admins-list-body">
+                                <tr><td colspan="6" style="text-align:center;">Loading admin users...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 6. MY PROFILE TAB (EDIT NAME & CHANGE PASSWORD) -->
+                <div id="tab-profile" class="admin-tab-pane">
+                    <h2 style="font-family: var(--font-display); font-size: 1.7rem; font-weight: 800; margin-bottom: 24px;">
+                        My Account Settings
+                    </h2>
+
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 28px;">
+                        <!-- Edit Name Card -->
+                        <div class="info-card">
+                            <h3 style="font-family: var(--font-display); font-size: 1.2rem; font-weight: 800; margin-bottom: 16px; color:#c4b5fd;">
+                                Edit Name & Details
+                            </h3>
+                            <form id="profile-name-form">
+                                <div class="form-group">
+                                    <label>Your Display Name</label>
+                                    <input type="text" id="profile-name-input" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Email Address</label>
+                                    <input type="email" id="profile-email-input" disabled style="opacity:0.7;">
+                                </div>
+                                <button type="submit" class="btn btn-primary" style="margin-top: 10px;">
+                                    Save Name
+                                </button>
+                                <span id="profile-name-status" style="margin-left: 12px; font-size: 0.85rem;"></span>
+                            </form>
+                        </div>
+
+                        <!-- Change Password Card -->
+                        <div class="info-card">
+                            <h3 style="font-family: var(--font-display); font-size: 1.2rem; font-weight: 800; margin-bottom: 16px; color:#c4b5fd;">
+                                Change Password
+                            </h3>
+                            <form id="profile-password-form">
+                                <div class="form-group">
+                                    <label>Current Password</label>
+                                    <input type="password" id="cur-pass-input" placeholder="Enter current password" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>New Password</label>
+                                    <input type="password" id="new-pass-input" placeholder="Min 6 characters" required minlength="6">
+                                </div>
+                                <div class="form-group">
+                                    <label>Confirm New Password</label>
+                                    <input type="password" id="confirm-pass-input" placeholder="Repeat new password" required minlength="6">
+                                </div>
+                                <button type="submit" class="btn btn-primary" style="margin-top: 10px;">
+                                    Update Password
+                                </button>
+                                <span id="profile-pass-status" style="margin-left: 12px; font-size: 0.85rem;"></span>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 7. AUDIT LOGS TAB -->
                 <div id="tab-audit" class="admin-tab-pane">
                     <h2 style="font-family: var(--font-display); font-size: 1.7rem; font-weight: 800; margin-bottom: 20px;">
                         Security & System Audit Trail

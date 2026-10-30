@@ -18,15 +18,18 @@ const CONFIG = {
 
 // Session State
 let adminToken = sessionStorage.getItem("tiko_admin_key") || "";
+let currentAdminUser = JSON.parse(sessionStorage.getItem("tiko_admin_user") || "null");
 let loadedEventsCache = [];
 
 // DOM Elements
 const adminAuth = document.getElementById("admin-auth");
 const adminDashboard = document.getElementById("admin-dashboard");
 const loginForm = document.getElementById("login-form");
-const adminKeyInput = document.getElementById("admin-key-input");
+const adminEmailInput = document.getElementById("admin-email-input");
+const adminPasswordInput = document.getElementById("admin-password-input");
 const loginError = document.getElementById("login-error");
 const btnLogout = document.getElementById("btn-logout");
+const currentAdminNameBadge = document.getElementById("current-admin-name-badge");
 
 // Navigation
 const navButtons = document.querySelectorAll(".admin-nav-btn");
@@ -48,6 +51,23 @@ const btnShowCreatePromo = document.getElementById("btn-show-create-promo");
 const createPromoPanel = document.getElementById("create-promo-panel");
 const btnCancelPromo = document.getElementById("btn-cancel-promo");
 const createPromoForm = document.getElementById("create-promo-form");
+
+// Admin Users Management
+const btnShowCreateAdmin = document.getElementById("btn-show-create-admin");
+const createAdminPanel = document.getElementById("create-admin-panel");
+const btnCancelAdmin = document.getElementById("btn-cancel-admin");
+const createAdminForm = document.getElementById("create-admin-form");
+
+// Profile Forms
+const profileNameForm = document.getElementById("profile-name-form");
+const profileNameInput = document.getElementById("profile-name-input");
+const profileEmailInput = document.getElementById("profile-email-input");
+const profileNameStatus = document.getElementById("profile-name-status");
+const profilePasswordForm = document.getElementById("profile-password-form");
+const curPassInput = document.getElementById("cur-pass-input");
+const newPassInput = document.getElementById("new-pass-input");
+const confirmPassInput = document.getElementById("confirm-pass-input");
+const profilePassStatus = document.getElementById("profile-pass-status");
 
 // Formatting
 function formatKSh(amount) {
@@ -90,35 +110,52 @@ loginForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   loginError.textContent = "";
 
-  const key = adminKeyInput.value.trim();
-  if (!key) return;
-
-  adminToken = key;
+  const email = adminEmailInput.value.trim();
+  const password = adminPasswordInput.value.trim();
+  if (!email || !password) return;
 
   try {
-    const res = await callAdminApi("login");
-    if (res.success) {
-      sessionStorage.setItem("tiko_admin_key", adminToken);
-      showDashboard();
+    const res = await fetch(`${CONFIG.SUPABASE_FUNCTIONS_URL}/admin-api`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "admin-login", email, password })
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.message || "Invalid email or password.");
     }
+
+    adminToken = data.token;
+    currentAdminUser = data.user;
+    sessionStorage.setItem("tiko_admin_key", adminToken);
+    sessionStorage.setItem("tiko_admin_user", JSON.stringify(currentAdminUser));
+
+    showDashboard();
+
   } catch (err) {
-    loginError.textContent = err.message || "Invalid Admin Key. Please try again.";
-    adminToken = "";
-    sessionStorage.removeItem("tiko_admin_key");
+    loginError.textContent = err.message || "Sign in failed. Check your credentials.";
   }
 });
 
 btnLogout.addEventListener("click", () => {
   sessionStorage.removeItem("tiko_admin_key");
+  sessionStorage.removeItem("tiko_admin_user");
   adminToken = "";
+  currentAdminUser = null;
   adminDashboard.classList.remove("active");
   adminAuth.style.display = "flex";
-  adminKeyInput.value = "";
+  adminPasswordInput.value = "";
 });
 
 function showDashboard() {
   adminAuth.style.display = "none";
   adminDashboard.classList.add("active");
+
+  if (currentAdminUser && currentAdminNameBadge) {
+    currentAdminNameBadge.textContent = currentAdminUser.name || currentAdminUser.email;
+  }
+
   loadOverviewStats();
 }
 
@@ -136,6 +173,8 @@ navButtons.forEach(btn => {
     if (btn.dataset.tab === "tab-events") loadEventsList();
     if (btn.dataset.tab === "tab-orders") loadOrdersList();
     if (btn.dataset.tab === "tab-promos") loadPromosList();
+    if (btn.dataset.tab === "tab-admins") loadAdminsList();
+    if (btn.dataset.tab === "tab-profile") loadProfileTab();
     if (btn.dataset.tab === "tab-audit") loadAuditLogs();
   });
 });
@@ -217,7 +256,6 @@ async function loadEventsList() {
   }
 }
 
-// Edit Event Handler
 window.openEditEvent = function(eventId) {
   const ev = loadedEventsCache.find(e => e.id === eventId);
   if (!ev) return;
@@ -235,7 +273,6 @@ window.openEditEvent = function(eventId) {
   document.getElementById("ev-poster").value = ev.poster_url || "";
   document.getElementById("ev-desc").value = ev.description || "";
 
-  // Populate categories
   catRowsContainer.innerHTML = "";
   const cats = ev.ticket_categories || [];
   if (cats.length > 0) {
@@ -269,7 +306,6 @@ window.deleteEvent = async function(eventId) {
   }
 };
 
-// Dynamic Category Rows in Form
 function addCategoryRow(name = "", price = "", origPrice = "", qty = 1000, catId = "") {
   const rowId = "cat-row-" + Date.now() + Math.random().toString(36).substring(2, 6);
   const row = document.createElement("div");
@@ -307,7 +343,6 @@ btnCancelCreate.addEventListener("click", () => {
   createEventPanel.style.display = "none";
 });
 
-// Submit Create or Edit Event
 createEventForm.addEventListener("submit", async (e) => {
   e.preventDefault();
 
@@ -323,7 +358,6 @@ createEventForm.addEventListener("submit", async (e) => {
   const poster_url = document.getElementById("ev-poster").value.trim();
   const description = document.getElementById("ev-desc").value.trim();
 
-  // Collect category rows
   const catRows = catRowsContainer.querySelectorAll(".cat-builder-row");
   const ticket_categories = [];
 
@@ -483,7 +517,146 @@ createPromoForm.addEventListener("submit", async (e) => {
   }
 });
 
-// 8. AUDIT LOGS
+// 8. ADMIN USERS MANAGEMENT
+async function loadAdminsList() {
+  try {
+    const data = await callAdminApi("list-admin-users");
+    const users = data.users || [];
+    const tbody = document.getElementById("admins-list-body");
+
+    if (users.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;">No admin users found.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = users.map(u => {
+      const isCurrent = currentAdminUser && currentAdminUser.id === u.id;
+      return `
+        <tr>
+          <td><strong>${u.name}</strong> ${isCurrent ? '<span style="color:#10b981; font-size:0.75rem;">(You)</span>' : ''}</td>
+          <td>${u.email}</td>
+          <td><span style="color:#a78bfa; font-weight:700;">${u.role}</span></td>
+          <td><span class="status-pill ${u.is_active ? 'paid' : 'failed'}">${u.is_active ? 'Active' : 'Disabled'}</span></td>
+          <td><small>${formatDate(u.created_at)}</small></td>
+          <td>
+            ${isCurrent ? '—' : `<button class="btn btn-sm" style="background:rgba(239,68,68,0.15); color:#ef4444;" onclick="deleteAdminUser('${u.id}', '${u.name}')">Delete</button>`}
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+  } catch (err) {
+    console.error("Error loading admins:", err);
+  }
+}
+
+window.deleteAdminUser = async function(userId, name) {
+  if (!confirm(`Are you sure you want to delete admin user "${name}"?`)) return;
+  try {
+    await callAdminApi("delete-admin-user", { user_id: userId });
+    alert("Admin user deleted.");
+    loadAdminsList();
+  } catch (err) {
+    alert(err.message);
+  }
+};
+
+btnShowCreateAdmin.addEventListener("click", () => {
+  createAdminPanel.style.display = "block";
+});
+
+btnCancelAdmin.addEventListener("click", () => {
+  createAdminPanel.style.display = "none";
+});
+
+createAdminForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const name = document.getElementById("new-admin-name").value.trim();
+  const email = document.getElementById("new-admin-email").value.trim();
+  const password = document.getElementById("new-admin-pass").value;
+  const role = document.getElementById("new-admin-role").value;
+
+  try {
+    await callAdminApi("create-admin-user", { name, email, password, role });
+    alert(`Admin user "${name}" created successfully!`);
+    createAdminForm.reset();
+    createAdminPanel.style.display = "none";
+    loadAdminsList();
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
+// 9. PROFILE & PASSWORD EDIT
+function loadProfileTab() {
+  if (currentAdminUser) {
+    profileNameInput.value = currentAdminUser.name || "";
+    profileEmailInput.value = currentAdminUser.email || "";
+  }
+  profileNameStatus.textContent = "";
+  profilePassStatus.textContent = "";
+}
+
+profileNameForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  profileNameStatus.textContent = "Saving...";
+  profileNameStatus.style.color = "#94a3b8";
+
+  const newName = profileNameInput.value.trim();
+  if (!newName) return;
+
+  try {
+    const res = await callAdminApi("update-admin-profile", {
+      user_id: currentAdminUser?.id,
+      name: newName
+    });
+
+    if (currentAdminUser) {
+      currentAdminUser.name = newName;
+      sessionStorage.setItem("tiko_admin_user", JSON.stringify(currentAdminUser));
+      currentAdminNameBadge.textContent = newName;
+    }
+
+    profileNameStatus.style.color = "#10b981";
+    profileNameStatus.textContent = "✓ Name updated successfully!";
+  } catch (err) {
+    profileNameStatus.style.color = "#ef4444";
+    profileNameStatus.textContent = err.message;
+  }
+});
+
+profilePasswordForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  profilePassStatus.textContent = "Updating...";
+  profilePassStatus.style.color = "#94a3b8";
+
+  const curPass = curPassInput.value;
+  const newPass = newPassInput.value;
+  const confirmPass = confirmPassInput.value;
+
+  if (newPass !== confirmPass) {
+    profilePassStatus.style.color = "#ef4444";
+    profilePassStatus.textContent = "New passwords do not match.";
+    return;
+  }
+
+  try {
+    await callAdminApi("change-password", {
+      user_id: currentAdminUser?.id,
+      current_password: curPass,
+      new_password: newPass
+    });
+
+    profilePassStatus.style.color = "#10b981";
+    profilePassStatus.textContent = "✓ Password changed successfully!";
+    profilePasswordForm.reset();
+  } catch (err) {
+    profilePassStatus.style.color = "#ef4444";
+    profilePassStatus.textContent = err.message;
+  }
+});
+
+// 10. AUDIT LOGS
 async function loadAuditLogs() {
   try {
     const data = await callAdminApi("list-audit-logs");
@@ -510,9 +683,12 @@ async function loadAuditLogs() {
   }
 }
 
-// Auto-login on load if key is saved in sessionStorage
+// Auto-login on load if session exists
 document.addEventListener("DOMContentLoaded", () => {
   if (adminToken) {
     showDashboard();
+  } else {
+    // Pre-populate demo / initial admin email for convenience
+    if (adminEmailInput) adminEmailInput.value = "vitupoaapp@gmail.com";
   }
 });
