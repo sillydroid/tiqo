@@ -266,8 +266,37 @@ categoryPills.forEach(pill => {
   });
 });
 
+// FAQ Accordion / Tabs (Only one active tab open at a time)
+function initFaqAccordion() {
+  const faqItems = document.querySelectorAll(".faq-item");
+  if (!faqItems.length) return;
+
+  faqItems.forEach((item) => {
+    const header = item.querySelector(".faq-header");
+    if (!header) return;
+
+    header.addEventListener("click", () => {
+      const isAlreadyActive = item.classList.contains("active");
+
+      // Close all tabs
+      faqItems.forEach((other) => {
+        other.classList.remove("active");
+        const otherHeader = other.querySelector(".faq-header");
+        if (otherHeader) otherHeader.setAttribute("aria-expanded", "false");
+      });
+
+      // If it wasn't active, activate it
+      if (!isAlreadyActive) {
+        item.classList.add("active");
+        header.setAttribute("aria-expanded", "true");
+      }
+    });
+  });
+}
+
 // Initialization
 document.addEventListener("DOMContentLoaded", () => {
   initSplash();
   fetchEvents();
+  initFaqAccordion();
 });

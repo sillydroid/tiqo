@@ -188,12 +188,6 @@ function renderEventDetails() {
 
   // Render Ticket Categories
   renderTicketCategories(isEnded);
-
-  // If Assigned Seating, prepare seats dropdown
-  if (currentEvent.seating_model === "assigned_seating" && seatPickerSection && !isEnded) {
-    seatPickerSection.style.display = "flex";
-    populateSeatPicker();
-  }
 }
 
 // Render Ticket Categories
@@ -451,11 +445,6 @@ btnOpenCheckout.addEventListener("click", () => {
 
   const cat = (currentEvent?.ticket_categories || []).find(c => c.id === selectedCategoryId);
   if (!cat) return;
-
-  if (currentEvent.seating_model === "assigned_seating" && selectedSeats.length === 0) {
-    alert("Please select your assigned Section, Row and Seat before proceeding.");
-    return;
-  }
 
   document.getElementById("modal-event-name").textContent = currentEvent.name;
   document.getElementById("modal-ticket-summary").textContent = `${selectedQuantity} × ${cat.name}`;

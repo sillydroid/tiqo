@@ -9,6 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <script src="theme.js"></script>
     <style>
         .admin-auth-screen {
             min-height: 100vh;
@@ -188,9 +189,12 @@
 <body>
 
     <!-- ==================== AUTHENTICATION SCREEN ==================== -->
-    <div id="admin-auth" class="admin-auth-screen">
+    <div id="admin-auth" class="admin-auth-screen" style="position:relative;">
+        <div style="position:absolute; top:20px; right:20px;">
+            <button class="theme-toggle-btn" aria-label="Toggle theme" title="Toggle theme"></button>
+        </div>
         <div class="admin-login-box">
-            <img src="assets/logo.png" alt="Tiko" style="height: 52px; margin-bottom: 14px;">
+            <img src="assets/logo.png" alt="Tiko" class="admin-logo" style="height: 52px; margin-bottom: 14px;">
             <h2 style="font-family: var(--font-display); font-size: 1.4rem; font-weight: 800; margin-bottom: 6px;">
                 Tiko Control Center
             </h2>
@@ -224,13 +228,14 @@
         <!-- Header -->
         <header class="admin-header">
             <div style="display: flex; align-items: center; gap: 14px;">
-                <img src="assets/logo.png" alt="Tiko" style="height: 38px;">
-                <span style="font-family: var(--font-display); font-weight: 800; font-size: 1.1rem; color: #fff;">
+                <img src="assets/logo.png" alt="Tiko" class="admin-logo" style="height: 38px;">
+                <span style="font-family: var(--font-display); font-weight: 800; font-size: 1.1rem;">
                     TIKO CONTROL CENTER
                 </span>
             </div>
             <div style="display: flex; align-items: center; gap: 14px;">
                 <span id="current-admin-name-badge" style="font-size: 0.9rem; color: #38bdf8; font-weight: 700;">Admin</span>
+                <button class="theme-toggle-btn" aria-label="Toggle theme" title="Toggle theme"></button>
                 <a href="./" target="_blank" class="btn btn-outline btn-sm">
                     Open Live Site ↗
                 </a>

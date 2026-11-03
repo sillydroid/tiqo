@@ -10,6 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <script src="theme.js"></script>
     <!-- PDF Generation & QR Code Libraries for Instant Digital Tickets -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -28,6 +29,7 @@
                 <a href="./#faq" class="nav-link">FAQ</a>
             </div>
             <div class="nav-actions">
+                <button class="theme-toggle-btn" aria-label="Toggle theme" title="Toggle theme"></button>
                 <a href="./" class="btn btn-outline btn-sm">Browse Other Events</a>
             </div>
             <button id="mobile-menu-btn" class="mobile-menu-btn" aria-label="Toggle menu">
@@ -38,6 +40,10 @@
             <a href="./#events" class="nav-link">← All Events</a>
             <a href="./#how-it-works" class="nav-link">How It Works</a>
             <a href="./#faq" class="nav-link">FAQ</a>
+            <div style="display:flex; justify-content:space-between; align-items:center; padding: 6px 0;">
+                <span style="font-weight:600; color:var(--text-secondary);">Theme</span>
+                <button class="theme-toggle-btn" aria-label="Toggle theme" title="Toggle theme"></button>
+            </div>
         </div>
     </nav>
 
@@ -119,28 +125,6 @@
                             <div class="state-spinner"></div>
                             <p>Loading ticket categories...</p>
                         </div>
-                    </div>
-
-                    <!-- Assigned Seating Picker (Shown only for assigned seating events) -->
-                    <div id="seat-picker-section" class="seat-picker-card" style="display: none;">
-                        <h4 style="font-family: var(--font-display); font-size: 1.1rem; color: #fbbf24;">
-                            💺 Assigned Seating Required
-                        </h4>
-                        <p style="font-size: 0.85rem; color: var(--text-secondary);">
-                            Select your Section, Row, and Seat for each ticket:
-                        </p>
-                        <div class="seat-dropdowns">
-                            <select id="seat-section-select" class="seat-select">
-                                <option value="">Select Section</option>
-                            </select>
-                            <select id="seat-row-select" class="seat-select" disabled>
-                                <option value="">Select Row</option>
-                            </select>
-                            <select id="seat-number-select" class="seat-select" disabled>
-                                <option value="">Select Seat</option>
-                            </select>
-                        </div>
-                        <div id="selected-seats-badge" style="font-size: 0.85rem; color: #10b981; font-weight: 700;"></div>
                     </div>
                 </section>
 
