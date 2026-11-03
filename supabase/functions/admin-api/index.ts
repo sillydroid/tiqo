@@ -712,7 +712,7 @@ serve(async (req: Request) => {
         .from("orders")
         .select(`
           *,
-          events (name, venue, event_date),
+          events (name, venue, event_date, event_time),
           ticket_categories (name)
         `, { count: "exact" })
         .order("created_at", { ascending: false });

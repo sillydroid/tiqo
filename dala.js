@@ -564,17 +564,20 @@ createEventForm.addEventListener("submit", async (e) => {
   }
 });
 
+let currentOrdersData = [];
+
 // 6. ORDERS & PAYMENTS RECONCILIATION
 async function loadOrdersList() {
   try {
     const data = await callAdminApi("list-orders", { limit: 100 });
     const orders = data.orders || [];
+    currentOrdersData = orders;
     const tbody = document.getElementById("orders-list-body");
     const gatewayAlert = document.getElementById("orders-gateway-alert");
     const gatewayMsg = document.getElementById("orders-gateway-msg");
 
     if (orders.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;">No orders recorded yet.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;">No orders recorded yet.</td></tr>`;
       if (gatewayAlert) gatewayAlert.style.display = "none";
       return;
     }
@@ -605,6 +608,17 @@ async function loadOrdersList() {
         ? `<div style="color:#f87171; font-size:0.75rem; margin-top:4px; font-weight:600; line-height:1.3; max-width:240px; background:rgba(239,68,68,0.1); padding:4px 8px; border-radius:4px; border:1px solid rgba(239,68,68,0.25);" title="${ord.failure_reason}">⚠️ ${ord.failure_reason}</div>`
         : '';
 
+      const ticketActionHtml = ord.status === 'paid'
+        ? `<div style="display:flex; gap:6px; align-items:center;">
+             <button type="button" class="btn btn-sm btn-download-admin-pass" data-ref="${ord.order_reference}" style="padding:4px 8px; font-size:0.75rem; background:rgba(0,245,118,0.15); border:1px solid #00f576; color:#00f576; border-radius:4px; font-weight:700; cursor:pointer;" title="Download PDF Pass">
+               📥 PDF
+             </button>
+             <a href="event.html?ref=${encodeURIComponent(ord.order_reference)}" target="_blank" style="padding:4px 8px; font-size:0.75rem; background:rgba(56,189,248,0.15); border:1px solid #38bdf8; color:#38bdf8; border-radius:4px; text-decoration:none; font-weight:700; display:inline-block;" title="View Digital Pass">
+               👁️ View
+             </a>
+           </div>`
+        : `<span style="color:var(--text-muted); font-size:0.75rem;">—</span>`;
+
       return `
         <tr>
           <td><strong style="color:#00f576;">${ord.order_reference}</strong></td>
@@ -623,12 +637,203 @@ async function loadOrdersList() {
             <small style="font-weight:600; color:var(--text-main);">${formatDate(ord.created_at)}</small><br>
             <small style="color:var(--text-muted); font-size:0.75rem;">${formatTime(ord.created_at)}</small>
           </td>
+          <td>${ticketActionHtml}</td>
         </tr>
       `;
     }).join('');
 
+    // Attach click listeners to download buttons
+    tbody.querySelectorAll(".btn-download-admin-pass").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const ref = btn.dataset.ref;
+        if (ref) downloadAdminTicketPDF(ref);
+      });
+    });
+
   } catch (err) {
     console.error("Error loading orders list:", err);
+  }
+}
+
+async function downloadAdminTicketPDF(orderRef) {
+  const ord = currentOrdersData.find(o => o.order_reference === orderRef);
+  if (!ord) {
+    alert("Order not found: " + orderRef);
+    return;
+  }
+  if (ord.status !== "paid") {
+    alert("Only confirmed and paid orders have digital tickets.");
+    return;
+  }
+
+  const { jsPDF } = window.jspdf || {};
+  if (!jsPDF) {
+    alert("PDF generator library is still loading, please try again in a few moments.");
+    return;
+  }
+
+  try {
+    const hiddenQr = document.getElementById("admin-qrcode-hidden");
+    if (hiddenQr) hiddenQr.innerHTML = "";
+    let qrDataUrl = "";
+
+    if (window.QRCode && hiddenQr) {
+      new QRCode(hiddenQr, {
+        text: `${CONFIG.SUPABASE_FUNCTIONS_URL}/check-order?reference=${ord.order_reference}`,
+        width: 150,
+        height: 150,
+        correctLevel: QRCode.CorrectLevel.H
+      });
+      await new Promise(r => setTimeout(r, 150));
+      const qrCanvas = hiddenQr.querySelector("canvas");
+      if (qrCanvas) qrDataUrl = qrCanvas.toDataURL("image/png");
+    }
+
+    const doc = new jsPDF({
+      orientation: "landscape",
+      unit: "mm",
+      format: [210, 148]
+    });
+
+    // Dark sleek background
+    doc.setFillColor(11, 10, 18);
+    doc.rect(0, 0, 210, 148, "F");
+
+    // Header banner
+    doc.setFillColor(24, 18, 45);
+    doc.rect(0, 0, 210, 42, "F");
+
+    // Outer border
+    doc.setDrawColor(43, 76, 250);
+    doc.setLineWidth(0.8);
+    doc.roundedRect(6, 6, 198, 136, 4, 4, "S");
+
+    // Brand logo & title
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(26);
+    doc.setFont("helvetica", "bold");
+    doc.text("TIKO", 14, 22);
+
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(167, 139, 250);
+    doc.text("PARTY FOR LESS", 14, 28);
+
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(148, 163, 184);
+    doc.text("Affordable entertainment — more vibes, less spend", 14, 33);
+
+    // Verified badge
+    doc.setFillColor(16, 185, 129);
+    doc.setTextColor(10, 10, 15);
+    doc.roundedRect(144, 14, 52, 10, 2, 2, "F");
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("VERIFIED PASS", 170, 20.5, { align: "center" });
+
+    // Divider
+    doc.setDrawColor(43, 76, 250);
+    doc.setLineWidth(0.5);
+    doc.line(14, 40, 196, 40);
+
+    // Event Details
+    const eventName = ord.events?.name || "TIKO EVENT";
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(15);
+    doc.setFont("helvetica", "bold");
+    doc.text(eventName.toUpperCase(), 14, 50);
+
+    doc.setFontSize(9);
+    doc.setTextColor(203, 213, 225);
+    doc.setFont("helvetica", "bold");
+    doc.text("DATE: ", 14, 60);
+    doc.setFont("helvetica", "normal");
+    doc.text(formatDate(ord.events?.event_date) || "TBA", 32, 60);
+
+    doc.setFont("helvetica", "bold");
+    doc.text("TIME: ", 14, 66);
+    doc.setFont("helvetica", "normal");
+    doc.text(ord.events?.event_time || "Doors Open", 32, 66);
+
+    doc.setFont("helvetica", "bold");
+    doc.text("VENUE: ", 14, 72);
+    doc.setFont("helvetica", "normal");
+    doc.text(ord.events?.venue || "Nairobi, Kenya", 32, 72);
+
+    // Attendee Card Box
+    doc.setFillColor(18, 17, 30);
+    doc.roundedRect(14, 80, 120, 52, 3, 3, "F");
+    doc.setDrawColor(255, 255, 255, 0.1);
+    doc.roundedRect(14, 80, 120, 52, 3, 3, "S");
+
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(148, 163, 184);
+    doc.text("ATTENDEE", 18, 88);
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(255, 255, 255);
+    doc.text((ord.customer_name || "VALUED GUEST").toUpperCase(), 18, 95);
+
+    doc.setFontSize(8);
+    doc.setTextColor(148, 163, 184);
+    doc.text("CATEGORY & SEAT", 18, 103);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(245, 158, 11);
+    const seatInfo = ord.selected_seats && ord.selected_seats.length > 0 ? ord.selected_seats.join(", ") : "General Admission";
+    doc.text(`${ord.quantity} × ${ord.ticket_categories?.name || "Pass"} (${seatInfo})`, 18, 109);
+
+    doc.setFontSize(8);
+    doc.setTextColor(148, 163, 184);
+    doc.text("AMOUNT PAID: ", 18, 119);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(16, 185, 129);
+    doc.text(formatKSh(ord.total_amount), 45, 119);
+
+    doc.setFontSize(8);
+    doc.setTextColor(148, 163, 184);
+    doc.text("M-PESA REF: ", 18, 126);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(255, 255, 255);
+    doc.text(ord.provider_reference || "CONFIRMED", 45, 126);
+
+    // Perforated Tear Line
+    doc.setDrawColor(255, 255, 255, 0.2);
+    doc.setLineDashPattern([2, 2], 0);
+    doc.line(142, 40, 142, 138);
+    doc.setLineDashPattern([], 0);
+
+    // QR Code Frame
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(150, 48, 46, 46, 2, 2, "F");
+
+    if (qrDataUrl) {
+      doc.addImage(qrDataUrl, "PNG", 152, 50, 42, 42);
+    }
+
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(203, 213, 225);
+    doc.text("GATE QR CODE", 173, 100, { align: "center" });
+
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(245, 158, 11);
+    doc.text(ord.order_reference, 173, 108, { align: "center" });
+
+    doc.setFontSize(6.5);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 116, 139);
+    doc.text("Scan for instant entry", 173, 116, { align: "center" });
+    doc.text("Official Verified Tiko Pass", 173, 120, { align: "center" });
+
+    doc.save(`Tiko-Pass-${ord.order_reference}.pdf`);
+
+  } catch (err) {
+    console.error("Admin PDF ticket generation error:", err);
+    alert("Error generating PDF ticket: " + err.message);
   }
 }
 

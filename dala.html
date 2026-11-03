@@ -10,6 +10,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <script src="theme.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         .admin-auth-screen {
             min-height: 100vh;
@@ -485,13 +487,15 @@
                                     <th>M-Pesa Receipt</th>
                                     <th>Status & Failure Reason</th>
                                     <th>Date</th>
+                                    <th>Ticket Pass</th>
                                 </tr>
                             </thead>
                             <tbody id="orders-list-body">
-                                <tr><td colspan="10" style="text-align:center;">Loading customer orders...</td></tr>
+                                <tr><td colspan="11" style="text-align:center;">Loading customer orders...</td></tr>
                             </tbody>
                         </table>
                     </div>
+                    <div id="admin-qrcode-hidden" style="display:none;"></div>
                 </div>
 
                 <!-- 4. PROMO CODES TAB -->
