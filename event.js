@@ -103,10 +103,33 @@ function formatDateDisplay(dateStr) {
   return dateStr;
 }
 
-// 1. Fetch Event Details on Load
+// 1. Fetch Event Details on Load (and handle direct ticket viewing via ?ref=)
 async function loadEventData() {
   const params = new URLSearchParams(window.location.search);
-  const eventIdOrSlug = params.get("id") || params.get("slug") || "ne-yo-live-in-nairobi";
+  const orderRef = params.get("ref") || params.get("order") || params.get("order_reference");
+  let eventIdOrSlug = params.get("id") || params.get("slug");
+
+  // Check if opening a confirmed ticket pass directly via URL
+  if (orderRef) {
+    try {
+      const res = await fetch(`${CONFIG.SUPABASE_FUNCTIONS_URL}/check-order?reference=${encodeURIComponent(orderRef)}`);
+      const data = await res.json();
+      if (data && data.success && (data.status === "paid" || data.status === "success")) {
+        displaySuccessDigitalTicket(data);
+        if (data.event_slug) {
+          eventIdOrSlug = data.event_slug;
+        } else if (data.event_id) {
+          eventIdOrSlug = data.event_id;
+        }
+      }
+    } catch (err) {
+      console.warn("Direct ticket pass lookup failed:", err);
+    }
+  }
+
+  if (!eventIdOrSlug) {
+    eventIdOrSlug = "ne-yo-live-in-nairobi";
+  }
 
   try {
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventIdOrSlug);
@@ -652,53 +675,80 @@ function startOrderPolling(orderRef, meta) {
   }, CONFIG.POLL_INTERVAL);
 }
 
-function displaySuccessDigitalTicket(orderData, meta) {
+function displaySuccessDigitalTicket(orderData, meta = {}) {
   const receipt = orderData.provider_reference || "M-Pesa Verified";
   const ref = orderData.order_reference;
+
+  const customerName = (meta && meta.name) || orderData.customer_name || "Valued Attendee";
+  const customerEmail = (meta && meta.email) || orderData.customer_email || "";
+  const phoneNumber = (meta && meta.phone) || orderData.phone_number || "";
+  const eventName = orderData.event_name || (currentEvent && currentEvent.name) || "Tiko Event";
+  const venue = orderData.event_venue || (currentEvent && currentEvent.venue) || "Nairobi, Kenya";
+  const rawDate = orderData.event_date || (currentEvent && currentEvent.event_date) || "";
+  const eventDate = formatDateDisplay(rawDate);
+  const eventTime = orderData.event_time || (currentEvent && currentEvent.event_time) || "Doors Open";
+  const categoryName = (meta && meta.categoryName) || orderData.ticket_category_name || "General Admission";
+  const quantity = (meta && meta.quantity) || orderData.quantity || 1;
+  const totalAmount = (meta && meta.totalAmount) || orderData.total_amount || 0;
+
+  let seats = "General Admission";
+  if (selectedSeats && selectedSeats.length > 0) {
+    seats = `${selectedSeats[0].section} - ${selectedSeats[0].row} - ${selectedSeats[0].seat}`;
+  } else if (orderData.selected_seats && orderData.selected_seats.length > 0) {
+    seats = orderData.selected_seats.join(", ");
+  }
 
   lastPaidOrder = {
     orderReference: ref,
     providerReference: receipt,
-    customerName: meta.name,
-    customerEmail: meta.email,
-    phoneNumber: meta.phone,
-    eventName: currentEvent.name,
-    venue: currentEvent.venue,
-    eventDate: formatDateDisplay(currentEvent.event_date),
-    eventTime: currentEvent.event_time,
-    categoryName: meta.categoryName,
-    quantity: meta.quantity,
-    totalAmount: meta.totalAmount,
-    seats: selectedSeats.length > 0 ? `${selectedSeats[0].section} - ${selectedSeats[0].row} - ${selectedSeats[0].seat}` : "General Admission"
+    customerName,
+    customerEmail,
+    phoneNumber,
+    eventName,
+    venue,
+    eventDate,
+    eventTime,
+    categoryName,
+    quantity,
+    totalAmount,
+    seats
   };
 
-  document.getElementById("dt-event-name").textContent = currentEvent.name;
-  document.getElementById("dt-date-time").textContent = `${formatDateDisplay(currentEvent.event_date)} · ${currentEvent.event_time}`;
-  document.getElementById("dt-venue").textContent = currentEvent.venue;
-  document.getElementById("dt-attendee").textContent = meta.name.toUpperCase();
-  document.getElementById("dt-category").textContent = `${meta.quantity} × ${meta.categoryName}`;
-  document.getElementById("dt-amount").textContent = formatKSh(meta.totalAmount);
+  document.getElementById("dt-event-name").textContent = eventName;
+  document.getElementById("dt-date-time").textContent = `${eventDate} · ${eventTime}`;
+  document.getElementById("dt-venue").textContent = venue;
+  document.getElementById("dt-attendee").textContent = customerName.toUpperCase();
+  document.getElementById("dt-category").textContent = `${quantity} × ${categoryName}`;
+  document.getElementById("dt-amount").textContent = formatKSh(totalAmount);
   document.getElementById("dt-receipt").textContent = receipt;
   document.getElementById("dt-ref").textContent = ref;
   document.getElementById("dt-referral-code").textContent = ref;
 
-  if (selectedSeats.length > 0) {
-    document.getElementById("dt-seat-row").style.display = "flex";
-    document.getElementById("dt-seat").textContent = lastPaidOrder.seats;
+  const seatRow = document.getElementById("dt-seat-row");
+  if (seatRow) {
+    if (seats && seats !== "General Admission") {
+      seatRow.style.display = "flex";
+      document.getElementById("dt-seat").textContent = seats;
+    } else {
+      seatRow.style.display = "none";
+    }
   }
 
   const qrDisplay = document.getElementById("qrcode-display");
-  qrDisplay.innerHTML = "";
-  if (window.QRCode) {
-    new QRCode(qrDisplay, {
-      text: `${CONFIG.SUPABASE_FUNCTIONS_URL}/check-order?reference=${ref}`,
-      width: 140,
-      height: 140,
-      correctLevel: QRCode.CorrectLevel.H
-    });
+  if (qrDisplay) {
+    qrDisplay.innerHTML = "";
+    if (window.QRCode) {
+      new QRCode(qrDisplay, {
+        text: `${CONFIG.SUPABASE_FUNCTIONS_URL}/check-order?reference=${ref}`,
+        width: 140,
+        height: 140,
+        correctLevel: QRCode.CorrectLevel.H
+      });
+    }
   }
 
   switchModalStep("success");
+  checkoutModal.classList.add("open");
 }
 
 async function generateDigitalTicketPDF() {

@@ -146,6 +146,7 @@ serve(async (req: Request) => {
         events (
           id,
           name,
+          slug,
           venue,
           event_date,
           event_time,
@@ -221,6 +222,8 @@ serve(async (req: Request) => {
         quantity: order.quantity,
         total_attendees: totalAttendees,
         selected_seats: order.selected_seats,
+        event_id: order.events?.id || null,
+        event_slug: order.events?.slug || null,
         event_name: order.events?.name || "Event",
         event_venue: order.events?.venue || "Venue",
         event_date: order.events?.event_date || "",
