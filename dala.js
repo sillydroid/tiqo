@@ -87,6 +87,19 @@ function formatDate(dateStr) {
   }
 }
 
+function formatTime(dateStr) {
+  if (!dateStr) return "";
+  try {
+    return new Date(dateStr).toLocaleTimeString("en-KE", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true
+    });
+  } catch {
+    return "";
+  }
+}
+
 // 1. Generic API Call to Edge Function
 async function callAdminApi(action, payload = {}) {
   const res = await fetch(`${CONFIG.SUPABASE_FUNCTIONS_URL}/admin-api`, {
@@ -606,7 +619,10 @@ async function loadOrdersList() {
             <span class="status-pill ${statusClass}">${ord.status.toUpperCase()}</span>
             ${failureHtml}
           </td>
-          <td><small>${formatDate(ord.created_at)}</small></td>
+          <td>
+            <small style="font-weight:600; color:var(--text-main);">${formatDate(ord.created_at)}</small><br>
+            <small style="color:var(--text-muted); font-size:0.75rem;">${formatTime(ord.created_at)}</small>
+          </td>
         </tr>
       `;
     }).join('');

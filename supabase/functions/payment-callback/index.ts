@@ -10,22 +10,80 @@ serve(async (req: Request) => {
     const payload = await req.json();
     console.log("Incoming M-Pesa / FinoQ Callback:", JSON.stringify(payload));
 
-    const {
-      success,
-      status,
-      reference,
-      external_reference,
-      amount,
-      provider_reference,
-      message,
-      provider
-    } = payload;
+    const resp = (payload && typeof payload.response === "object" && payload.response !== null)
+      ? payload.response
+      : {};
 
-    const orderRef = external_reference;
+    // Support flat, nested PayHero C2B and STK response formats
+    const orderRef =
+      payload.external_reference ||
+      payload.ExternalReference ||
+      payload.User_Reference ||
+      payload.user_reference ||
+      payload.order_reference ||
+      payload.reference ||
+      resp.ExternalReference ||
+      resp.User_Reference ||
+      resp.external_reference ||
+      resp.user_reference ||
+      resp.reference ||
+      null;
+
     if (!orderRef) {
-      console.error("Missing external_reference in callback");
+      console.error("Missing external_reference in callback. Full payload:", JSON.stringify(payload));
       return new Response(JSON.stringify({ error: "Missing external_reference" }), { status: 400 });
     }
+
+    const providerRef =
+      payload.provider_reference ||
+      payload.mpesa_reference ||
+      payload.MpesaReceiptNumber ||
+      resp.MpesaReceiptNumber ||
+      resp.MPESA_Reference ||
+      resp.Transaction_Reference ||
+      resp.provider_reference ||
+      null;
+
+    const payheroRef =
+      payload.reference ||
+      payload.checkout_request_id ||
+      resp.CheckoutRequestID ||
+      resp.MerchantRequestID ||
+      null;
+
+    const rawAmount =
+      payload.amount ??
+      resp.Amount ??
+      resp.amount ??
+      null;
+
+    // Determine Success vs Failure
+    const resultCode = resp.ResultCode;
+    const statusVal = String(resp.Status || payload.status || "").toLowerCase();
+    const wcStatus = String(resp.woocommerce_payment_status || "").toLowerCase();
+
+    const isExplicitSuccess =
+      payload.success === true ||
+      statusVal === "success" ||
+      statusVal === "true" ||
+      wcStatus === "complete" ||
+      resultCode === 0;
+
+    const isExplicitFail =
+      payload.success === false ||
+      statusVal === "failed" ||
+      statusVal === "false" ||
+      (resultCode !== undefined && resultCode !== null && Number(resultCode) !== 0);
+
+    const isSuccess = isExplicitSuccess && !isExplicitFail;
+
+    const failureReason =
+      resp.ResultDesc ||
+      resp.Status ||
+      payload.message ||
+      (isExplicitFail ? "Payment was cancelled or could not be completed." : null);
+
+    const providerName = payload.provider || resp.Payment_Method || "mpesa";
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -56,19 +114,17 @@ serve(async (req: Request) => {
     // 3. Log into Payments audit table
     await supabase.from("payments").insert({
       order_reference: orderRef,
-      provider: provider || "mpesa",
-      provider_reference: provider_reference || null,
-      payhero_reference: reference || null,
-      amount: Number(amount) || order.total_amount,
-      status: String(status || (success ? "success" : "failed")),
+      provider: providerName,
+      provider_reference: providerRef,
+      payhero_reference: payheroRef || order.payhero_reference,
+      amount: rawAmount !== null ? Number(rawAmount) : order.total_amount,
+      status: isSuccess ? "success" : "failed",
       raw_payload: payload
     });
 
-    const isSuccess = success === true || String(status).toLowerCase() === "success";
-
     if (isSuccess) {
       // 4. Reconciliation: verify received amount
-      const paidAmount = Number(amount);
+      const paidAmount = rawAmount !== null ? Number(rawAmount) : Number(order.total_amount);
       const expectedAmount = Number(order.total_amount);
 
       if (paidAmount < expectedAmount) {
@@ -99,8 +155,8 @@ serve(async (req: Request) => {
       // Mark order as PAID
       await supabase.from("orders").update({
         status: "paid",
-        provider_reference: provider_reference || null,
-        payhero_reference: reference || order.payhero_reference,
+        provider_reference: providerRef || order.provider_reference,
+        payhero_reference: payheroRef || order.payhero_reference,
         paid_at: new Date().toISOString()
       }).eq("order_reference", orderRef);
 
@@ -136,17 +192,17 @@ serve(async (req: Request) => {
         details: {
           order_reference: orderRef,
           amount_paid: paidAmount,
-          mpesa_receipt: provider_reference,
+          mpesa_receipt: providerRef,
           customer: order.customer_name
         },
         performed_by: "mpesa_webhook"
       });
 
-      console.log(`Order ${orderRef} successfully verified and paid! Receipt: ${provider_reference}`);
+      console.log(`Order ${orderRef} successfully verified and paid! Receipt: ${providerRef}`);
 
     } else {
       // Payment Failed or Cancelled by customer
-      const reason = message || status || "M-Pesa payment cancelled or declined.";
+      const reason = failureReason || "M-Pesa payment cancelled or declined.";
       console.log(`Payment failed for ${orderRef}: ${reason}`);
 
       await supabase.from("orders").update({
