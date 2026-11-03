@@ -466,7 +466,41 @@ function switchModalStep(stepName) {
   if (stepName === "details") stepDetails.classList.add("active");
   if (stepName === "processing") stepProcessing.classList.add("active");
   if (stepName === "success") stepSuccess.classList.add("active");
-  if (stepName === "error") stepError.classList.add("error");
+  if (stepName === "error") stepError.classList.add("active");
+}
+
+function updatePaymentProgress(step) {
+  const s1 = document.getElementById("prog-step-1");
+  const s2 = document.getElementById("prog-step-2");
+  const s3 = document.getElementById("prog-step-3");
+  if (!s1 || !s2 || !s3) return;
+
+  const dot1 = s1.querySelector("span:first-child");
+  const dot2 = s2.querySelector("span:first-child");
+  const dot3 = s3.querySelector("span:first-child");
+
+  if (step === 1) {
+    s1.style.color = "#38bdf8"; s1.style.fontWeight = "700";
+    s2.style.color = "var(--text-muted)"; s2.style.fontWeight = "normal";
+    s3.style.color = "var(--text-muted)"; s3.style.fontWeight = "normal";
+    if (dot1) dot1.style.background = "#38bdf8";
+    if (dot2) dot2.style.background = "rgba(255,255,255,0.2)";
+    if (dot3) dot3.style.background = "rgba(255,255,255,0.2)";
+  } else if (step === 2) {
+    s1.style.color = "#10b981"; s1.style.fontWeight = "600";
+    s2.style.color = "#38bdf8"; s2.style.fontWeight = "700";
+    s3.style.color = "var(--text-muted)"; s3.style.fontWeight = "normal";
+    if (dot1) dot1.style.background = "#10b981";
+    if (dot2) dot2.style.background = "#38bdf8";
+    if (dot3) dot3.style.background = "rgba(255,255,255,0.2)";
+  } else if (step === 3) {
+    s1.style.color = "#10b981"; s1.style.fontWeight = "600";
+    s2.style.color = "#10b981"; s2.style.fontWeight = "600";
+    s3.style.color = "#38bdf8"; s3.style.fontWeight = "700";
+    if (dot1) dot1.style.background = "#10b981";
+    if (dot2) dot2.style.background = "#10b981";
+    if (dot3) dot3.style.background = "#38bdf8";
+  }
 }
 
 // Checkout Form Submission (Trigger Real M-Pesa STK Push)
@@ -516,7 +550,8 @@ checkoutForm.addEventListener("submit", async (e) => {
   const cat = (currentEvent.ticket_categories || []).find(c => c.id === selectedCategoryId);
 
   switchModalStep("processing");
-  processingStatus.textContent = `Sending M-Pesa STK push to ${cleanPhone}...`;
+  updatePaymentProgress(1);
+  processingStatus.textContent = `Connecting to Safaricom M-Pesa for ${cleanPhone}...`;
 
   try {
     const res = await fetch(`${CONFIG.SUPABASE_FUNCTIONS_URL}/create-order`, {
@@ -541,7 +576,9 @@ checkoutForm.addEventListener("submit", async (e) => {
       throw new Error(data.message || "Could not initiate M-Pesa STK push.");
     }
 
-    processingStatus.textContent = "M-Pesa PIN prompt sent to your phone! Please enter your PIN...";
+    // Step 2: Prompt dispatched to mobile device
+    updatePaymentProgress(2);
+    processingStatus.textContent = `M-Pesa PIN prompt sent to ${cleanPhone}! Please check your phone screen and enter your PIN...`;
 
     startOrderPolling(data.order_reference, {
       name,
@@ -554,7 +591,8 @@ checkoutForm.addEventListener("submit", async (e) => {
 
   } catch (err) {
     console.error("Order initiation error:", err);
-    errorMessage.textContent = err.message || "Payment initiation failed. Please verify your phone and try again.";
+    lastPaidOrder = null;
+    errorMessage.textContent = err.message || "Payment initiation failed. Please verify your phone number and try again.";
     switchModalStep("error");
   }
 });
@@ -563,16 +601,30 @@ btnRetry.addEventListener("click", () => {
   switchModalStep("details");
 });
 
+const btnCancelCheckout = document.getElementById("btn-cancel-checkout");
+if (btnCancelCheckout) {
+  btnCancelCheckout.addEventListener("click", () => {
+    checkoutModal.classList.remove("open");
+    if (currentPollTimer) clearInterval(currentPollTimer);
+  });
+}
+
 function startOrderPolling(orderRef, meta) {
   pollStartTime = Date.now();
   if (currentPollTimer) clearInterval(currentPollTimer);
 
   currentPollTimer = setInterval(async () => {
     const elapsed = (Date.now() - pollStartTime) / 1000;
+    if (elapsed > 15) {
+      updatePaymentProgress(3);
+      processingStatus.textContent = "Verifying M-Pesa payment confirmation...";
+    }
+
     if (elapsed > CONFIG.POLL_TIMEOUT_SEC) {
       clearInterval(currentPollTimer);
       currentPollTimer = null;
-      errorMessage.textContent = "Payment verification timed out. If you already entered your PIN, please contact support with reference: " + orderRef;
+      lastPaidOrder = null;
+      errorMessage.textContent = "Payment verification timed out. If you already entered your PIN, please check your SMS or contact support with reference: " + orderRef;
       switchModalStep("error");
       return;
     }
@@ -590,7 +642,8 @@ function startOrderPolling(orderRef, meta) {
       } else if (data.status === "failed") {
         clearInterval(currentPollTimer);
         currentPollTimer = null;
-        errorMessage.textContent = data.message || "M-Pesa transaction was cancelled or declined.";
+        lastPaidOrder = null;
+        errorMessage.textContent = data.message || "The transaction was cancelled or declined on M-Pesa.";
         switchModalStep("error");
       }
     } catch (e) {

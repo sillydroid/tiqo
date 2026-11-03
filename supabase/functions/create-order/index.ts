@@ -129,40 +129,9 @@ serve(async (req: Request) => {
       );
     }
 
-    // If event uses assigned seating, validate seat selection
+    // Seating is strictly optional and NEVER blocks payments
     let validatedSeats: any[] = [];
-    if (event.seating_model === "assigned_seating") {
-      if (!Array.isArray(selected_seats) || selected_seats.length !== qty) {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            message: `This event requires assigned seating. Please select exactly ${qty} available seat(s).`
-          }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      for (const seat of selected_seats) {
-        const { data: sData } = await supabase
-          .from("seat_maps")
-          .select("id, status")
-          .eq("event_id", event_id)
-          .eq("ticket_category_id", category.id)
-          .eq("section", seat.section)
-          .eq("row_name", seat.row)
-          .eq("seat_number", seat.seat)
-          .single();
-
-        if (!sData || sData.status !== "available") {
-          return new Response(
-            JSON.stringify({
-              success: false,
-              message: `Seat ${seat.section} - ${seat.row} - ${seat.seat} is already reserved or unavailable. Please choose another.`
-            }),
-            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-      }
+    if (Array.isArray(selected_seats) && selected_seats.length > 0) {
       validatedSeats = selected_seats;
     }
 
@@ -370,16 +339,17 @@ serve(async (req: Request) => {
     }
 
     if (!finoqResponse.ok || payheroData.success === false || payheroData.error_code) {
-      const errorMsg = payheroData.error_message || 
+      const rawError = payheroData.error_message || 
                        payheroData.message || 
                        payheroData.detail || 
                        (typeof payheroData.error === 'string' ? payheroData.error : null) || 
                        responseText || 
                        "Failed to trigger M-Pesa STK push.";
 
+      // Save full technical details into database orders table for admin inspection
       await supabase.from("orders").update({
         status: "failed",
-        failure_reason: errorMsg
+        failure_reason: rawError
       }).eq("order_reference", orderRef);
 
       // Restore category remaining
@@ -387,7 +357,7 @@ serve(async (req: Request) => {
         remaining_quantity: category.remaining_quantity
       }).eq("id", category.id);
 
-      // Release reserved seats
+      // Release reserved seats if any
       if (validatedSeats.length > 0) {
         await supabase.from("seat_maps").update({
           status: "available",
@@ -396,8 +366,24 @@ serve(async (req: Request) => {
         }).eq("order_id", newOrder.id);
       }
 
+      // Customer-friendly message: Never expose PayHero / internal provider errors or credentials
+      let customerMessage = "Could not initiate M-Pesa payment prompt. Please verify your phone number and try again.";
+      const lower = rawError.toLowerCase();
+
+      if (lower.includes("channel") || lower.includes("merchant") || lower.includes("unauthorized") || lower.includes("payhero") || lower.includes("finoq")) {
+        customerMessage = "Payment gateway is currently undergoing scheduled system updates. Please try again shortly or contact event organizers.";
+      } else if (lower.includes("phone") || lower.includes("msisdn") || lower.includes("invalid number")) {
+        customerMessage = "Invalid phone number. Please enter an active Kenyan phone number starting with 07 or 01.";
+      } else if (lower.includes("insufficient") || lower.includes("balance")) {
+        customerMessage = "Insufficient M-Pesa balance on your phone. Please top up and try again.";
+      } else if (lower.includes("limit") || lower.includes("blocked") || lower.includes("too many")) {
+        customerMessage = "Too many payment attempts for this number. Please wait a few minutes before trying again.";
+      } else if (lower.includes("cancel") || lower.includes("declined")) {
+        customerMessage = "The payment prompt was cancelled or declined on your phone.";
+      }
+
       return new Response(
-        JSON.stringify({ success: false, message: errorMsg }),
+        JSON.stringify({ success: false, message: customerMessage }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

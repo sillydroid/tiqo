@@ -200,6 +200,14 @@ serve(async (req: Request) => {
     const attendeesPerUnit = order.ticket_categories?.attendees_per_unit || 1;
     const totalAttendees = order.quantity * attendeesPerUnit;
 
+    let customerMsg = order.failure_reason || null;
+    if (customerMsg) {
+      const lower = customerMsg.toLowerCase();
+      if (lower.includes("channel") || lower.includes("merchant") || lower.includes("payhero") || lower.includes("finoq")) {
+        customerMsg = "Payment gateway is currently undergoing scheduled updates. Please try again shortly or contact support.";
+      }
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -219,7 +227,7 @@ serve(async (req: Request) => {
         event_time: order.events?.event_time || "",
         ticket_category_name: order.ticket_categories?.name || "Ticket",
         referral_code: order.order_reference,
-        message: order.failure_reason || null,
+        message: customerMsg,
         paid_at: order.paid_at
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
