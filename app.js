@@ -99,7 +99,10 @@ async function fetchEvents() {
 
 // Render Events Filtered by Category & Search Term
 function renderEvents() {
-  let filtered = allEvents;
+  let filtered = [...allEvents];
+
+  const todayStr = new Date().toISOString().split("T")[0];
+  const isEnded = (ev) => ev.is_ended || (ev.event_date && ev.event_date < todayStr);
 
   // Filter by category
   if (currentCategory !== "all") {
@@ -116,6 +119,14 @@ function renderEvents() {
     );
   }
 
+  // Always sort active/upcoming events first, and ended events strictly to the end
+  filtered.sort((a, b) => {
+    const aEnd = isEnded(a) ? 1 : 0;
+    const bEnd = isEnded(b) ? 1 : 0;
+    if (aEnd !== bEnd) return aEnd - bEnd;
+    return (a.event_date || "").localeCompare(b.event_date || "");
+  });
+
   if (eventsCount) {
     eventsCount.textContent = `${filtered.length} event${filtered.length === 1 ? '' : 's'} found`;
   }
@@ -123,7 +134,7 @@ function renderEvents() {
   if (filtered.length === 0) {
     eventsGrid.innerHTML = `
       <div class="state-box">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.5" style="margin-bottom:12px;">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#2b4cfa" stroke-width="1.5" style="margin-bottom:12px;">
           <circle cx="11" cy="11" r="8"></circle>
           <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
         </svg>
@@ -202,7 +213,7 @@ function renderFallbackEvents() {
       poster_url: "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?q=80&w=1200&auto=format&fit=crop",
       category: "concert",
       starting_price: 2000,
-      is_ended: false
+      is_ended: true
     },
     {
       id: "sol-fest-nairobi-2026",

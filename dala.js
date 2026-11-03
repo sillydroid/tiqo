@@ -202,7 +202,7 @@ async function loadOverviewStats() {
         <td><strong>${ev.name}</strong></td>
         <td>${ev.date}</td>
         <td>${ev.venue}</td>
-        <td><strong style="color:#c4b5fd;">${(ev.tickets_sold || 0).toLocaleString()}</strong></td>
+        <td><strong style="color:#00f576;">${(ev.tickets_sold || 0).toLocaleString()}</strong></td>
         <td><strong style="color:#10b981;">${formatKSh(ev.revenue || 0)}</strong></td>
         <td>${(ev.remaining || 0).toLocaleString()}</td>
         <td><span class="status-pill ${ev.status}">${ev.status}</span></td>
@@ -236,7 +236,7 @@ async function loadEventsList() {
           <td>${ev.venue}</td>
           <td>${ev.event_date}</td>
           <td style="font-size:0.8rem; color:var(--text-secondary); max-width:250px;">${catsSummary}</td>
-          <td><span style="font-size:0.8rem; color:#a78bfa;">${ev.seating_model}</span></td>
+          <td><span style="font-size:0.8rem; color:#38bdf8;">${ev.seating_model}</span></td>
           <td><span class="status-pill ${ev.status}">${ev.status}</span></td>
           <td>
             <div style="display:flex; gap:6px; flex-wrap:wrap;">
@@ -442,7 +442,7 @@ async function loadOrdersList() {
 
       return `
         <tr>
-          <td><strong style="color:#a78bfa;">${ord.order_reference}</strong></td>
+          <td><strong style="color:#00f576;">${ord.order_reference}</strong></td>
           <td>${ord.customer_name}<br><small style="color:var(--text-muted);">${ord.customer_email}</small></td>
           <td>${ord.phone_number}</td>
           <td>${ord.events?.name || '—'}</td>
@@ -535,7 +535,7 @@ async function loadAdminsList() {
         <tr>
           <td><strong>${u.name}</strong> ${isCurrent ? '<span style="color:#10b981; font-size:0.75rem;">(You)</span>' : ''}</td>
           <td>${u.email}</td>
-          <td><span style="color:#a78bfa; font-weight:700;">${u.role}</span></td>
+          <td><span style="color:#38bdf8; font-weight:700;">${u.role}</span></td>
           <td><span class="status-pill ${u.is_active ? 'paid' : 'failed'}">${u.is_active ? 'Active' : 'Disabled'}</span></td>
           <td><small>${formatDate(u.created_at)}</small></td>
           <td>
@@ -671,7 +671,7 @@ async function loadAuditLogs() {
     tbody.innerHTML = logs.map(l => `
       <tr>
         <td><small style="color:var(--text-muted);">${new Date(l.created_at).toLocaleString('en-KE')}</small></td>
-        <td><strong style="color:#c4b5fd;">${l.action}</strong></td>
+        <td><strong style="color:#00f576;">${l.action}</strong></td>
         <td>${l.entity_type || '—'}</td>
         <td><span style="color:#10b981;">${l.performed_by || 'system'}</span></td>
         <td><small style="color:var(--text-secondary);">${JSON.stringify(l.details || {})}</small></td>

@@ -19,13 +19,13 @@
         }
         .admin-login-box {
             background: var(--bg-secondary);
-            border: 1px solid rgba(112, 66, 248, 0.4);
+            border: 1px solid rgba(43, 76, 250, 0.4);
             border-radius: var(--radius-lg);
             padding: 36px 32px;
             width: 100%;
             max-width: 440px;
             text-align: center;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.7), 0 0 30px var(--accent-purple-glow);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.7), 0 0 30px rgba(43, 76, 250, 0.3);
         }
         .admin-layout {
             display: none;
@@ -83,9 +83,9 @@
             background: rgba(255, 255, 255, 0.05);
         }
         .admin-nav-btn.active {
-            background: rgba(112, 66, 248, 0.18);
+            background: rgba(43, 76, 250, 0.18);
             color: #fff;
-            border-left: 3px solid #7042f8;
+            border-left: 3px solid #2b4cfa;
         }
         .admin-content {
             flex-grow: 1;
@@ -126,8 +126,8 @@
             color: #fff;
         }
         .stat-val.gold { color: #f59e0b; }
-        .stat-val.green { color: #10b981; }
-        .stat-val.purple { color: #c4b5fd; }
+        .stat-val.green { color: #00f576; }
+        .stat-val.blue { color: #38bdf8; }
 
         .table-responsive {
             width: 100%;
@@ -174,7 +174,7 @@
         .status-pill.paid { background: rgba(16, 185, 129, 0.15); color: #10b981; }
         .status-pill.pending { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
         .status-pill.failed { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
-        .status-pill.published { background: rgba(112, 66, 248, 0.15); color: #c4b5fd; }
+        .status-pill.published { background: rgba(43, 76, 250, 0.15); color: #38bdf8; }
 
         .cat-builder-row {
             display: grid;
@@ -230,7 +230,7 @@
                 </span>
             </div>
             <div style="display: flex; align-items: center; gap: 14px;">
-                <span id="current-admin-name-badge" style="font-size: 0.9rem; color: #a78bfa; font-weight: 700;">Admin</span>
+                <span id="current-admin-name-badge" style="font-size: 0.9rem; color: #38bdf8; font-weight: 700;">Admin</span>
                 <a href="./" target="_blank" class="btn btn-outline btn-sm">
                     Open Live Site ↗
                 </a>
@@ -283,7 +283,7 @@
                         </div>
                         <div class="stat-card">
                             <div class="stat-label">Tickets Sold</div>
-                            <div class="stat-val purple" id="stat-sold">0</div>
+                            <div class="stat-val blue" id="stat-sold">0</div>
                         </div>
                         <div class="stat-card">
                             <div class="stat-label">Active Events</div>
@@ -326,8 +326,8 @@
                     </div>
 
                     <!-- Create / Edit Event Form Panel -->
-                    <div id="create-event-panel" class="info-card" style="display:none; margin-bottom: 32px; border-color: rgba(112, 66, 248, 0.4);">
-                        <h3 id="event-form-title" style="font-family: var(--font-display); font-size: 1.3rem; font-weight: 800; margin-bottom: 18px; color: #a78bfa;">
+                    <div id="create-event-panel" class="info-card" style="display:none; margin-bottom: 32px; border-color: rgba(43, 76, 250, 0.4);">
+                        <h3 id="event-form-title" style="font-family: var(--font-display); font-size: 1.3rem; font-weight: 800; margin-bottom: 18px; color: #38bdf8;">
                             Create New Event
                         </h3>
                         <form id="create-event-form">
@@ -473,8 +473,8 @@
                     </div>
 
                     <!-- Create Promo Code Panel -->
-                    <div id="create-promo-panel" class="info-card" style="display:none; margin-bottom: 28px; border-color: rgba(112, 66, 248, 0.4);">
-                        <h3 style="font-family: var(--font-display); font-size: 1.25rem; font-weight: 800; margin-bottom: 16px; color:#a78bfa;">
+                    <div id="create-promo-panel" class="info-card" style="display:none; margin-bottom: 28px; border-color: rgba(43, 76, 250, 0.4);">
+                        <h3 style="font-family: var(--font-display); font-size: 1.25rem; font-weight: 800; margin-bottom: 16px; color:#38bdf8;">
                             Add New Promo Code (e.g. TIKOO10)
                         </h3>
                         <form id="create-promo-form">
@@ -532,8 +532,8 @@
                     </div>
 
                     <!-- Create Admin Panel -->
-                    <div id="create-admin-panel" class="info-card" style="display:none; margin-bottom: 28px; border-color: rgba(112, 66, 248, 0.4);">
-                        <h3 style="font-family: var(--font-display); font-size: 1.25rem; font-weight: 800; margin-bottom: 16px; color:#a78bfa;">
+                    <div id="create-admin-panel" class="info-card" style="display:none; margin-bottom: 28px; border-color: rgba(43, 76, 250, 0.4);">
+                        <h3 style="font-family: var(--font-display); font-size: 1.25rem; font-weight: 800; margin-bottom: 16px; color:#38bdf8;">
                             Create New Administrator
                         </h3>
                         <form id="create-admin-form">
@@ -595,7 +595,7 @@
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 28px;">
                         <!-- Edit Name Card -->
                         <div class="info-card">
-                            <h3 style="font-family: var(--font-display); font-size: 1.2rem; font-weight: 800; margin-bottom: 16px; color:#c4b5fd;">
+                            <h3 style="font-family: var(--font-display); font-size: 1.2rem; font-weight: 800; margin-bottom: 16px; color:#38bdf8;">
                                 Edit Name & Details
                             </h3>
                             <form id="profile-name-form">
@@ -616,7 +616,7 @@
 
                         <!-- Change Password Card -->
                         <div class="info-card">
-                            <h3 style="font-family: var(--font-display); font-size: 1.2rem; font-weight: 800; margin-bottom: 16px; color:#c4b5fd;">
+                            <h3 style="font-family: var(--font-display); font-size: 1.2rem; font-weight: 800; margin-bottom: 16px; color:#38bdf8;">
                                 Change Password
                             </h3>
                             <form id="profile-password-form">

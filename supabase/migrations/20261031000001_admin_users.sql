@@ -41,3 +41,4 @@ UPDATE public.events
 SET event_date = '2026-12-20',
     status = 'published'
 WHERE slug = 'ne-yo-live-in-nairobi' OR id = 'c0000000-0000-0000-0000-000000000001';
+

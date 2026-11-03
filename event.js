@@ -145,7 +145,7 @@ function fallbackEventLoad(key) {
       { id: "d3", name: "VIP Pass", price: 10000, original_price: 15000, remaining_quantity: 320, total_quantity: 500 },
       { id: "d4", name: "Platinum Green Area", price: 20000, original_price: 25000, remaining_quantity: 45, total_quantity: 100 }
     ],
-    is_ended: false
+    is_ended: true
   };
   renderEventDetails();
 }
