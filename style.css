@@ -768,7 +768,7 @@ body {
 .event-hero-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(10, 10, 13, 0.4) 0%, rgba(10, 10, 13, 0.95) 85%, #0a0a0d 100%);
+  background: linear-gradient(180deg, rgba(8, 9, 13, 0.45) 0%, rgba(8, 9, 13, 0.92) 80%, var(--bg-primary) 100%);
 }
 
 .event-hero-content {
@@ -783,6 +783,14 @@ body {
   font-weight: 900;
   line-height: 1.1;
   margin-bottom: 16px;
+  color: #ffffff !important;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.85), 0 4px 28px rgba(0, 0, 0, 0.6);
+}
+
+.event-hero-banner .hero-slogan-badge {
+  background: rgba(37, 70, 235, 0.3) !important;
+  border-color: rgba(59, 130, 246, 0.6) !important;
+  color: #bfdbfe !important;
 }
 
 .event-meta-bar {
@@ -796,15 +804,16 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: rgba(22, 22, 32, 0.8);
-  border: 1px solid var(--border-subtle);
+  background: rgba(15, 18, 28, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #ffffff;
   padding: 8px 16px;
   border-radius: var(--radius-md);
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(10px);
 }
 
 .meta-pill svg {
-  color: #60a5fa;
+  color: #38bdf8;
 }
 
 /* Details + Booking Layout */
@@ -1763,6 +1772,17 @@ body {
 
 [data-theme="light"] .ticket-row span:last-child {
   color: #0f172a;
+}
+
+[data-theme="light"] .event-hero-title {
+  color: #ffffff !important;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.9), 0 4px 30px rgba(0, 0, 0, 0.7);
+}
+
+[data-theme="light"] .event-hero-banner .hero-slogan-badge {
+  background: rgba(37, 70, 235, 0.35) !important;
+  border-color: rgba(59, 130, 246, 0.7) !important;
+  color: #ffffff !important;
 }
 
 [data-theme="light"] .meta-pill {

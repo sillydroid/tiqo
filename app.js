@@ -87,6 +87,7 @@ async function fetchEvents() {
     const data = await res.json();
     if (data.success && Array.isArray(data.events)) {
       allEvents = data.events;
+      updateCategoryPills();
       renderEvents();
     } else {
       renderError("No events currently listed. Please check back soon!");
@@ -95,6 +96,47 @@ async function fetchEvents() {
     console.error("Fetch events error:", err);
     renderFallbackEvents();
   }
+}
+
+// Dynamically show category tabs only if they have events (active or ended)
+function updateCategoryPills() {
+  const pills = document.querySelectorAll(".cat-pill");
+  if (!pills.length) return;
+
+  const existingCategories = new Set(
+    allEvents
+      .map(ev => (ev.category || "").toLowerCase().trim())
+      .filter(Boolean)
+  );
+
+  pills.forEach(pill => {
+    const pillCat = (pill.dataset.category || "").toLowerCase().trim();
+    if (pillCat === "all") {
+      pill.style.display = "";
+      return;
+    }
+
+    const hasMatch = Array.from(existingCategories).some(cat => 
+      cat === pillCat ||
+      cat === pillCat + "s" ||
+      pillCat === cat + "s" ||
+      (pillCat.length > 3 && cat.startsWith(pillCat))
+    );
+
+    if (hasMatch) {
+      pill.style.display = "";
+    } else {
+      pill.style.display = "none";
+      if (currentCategory === pillCat) {
+        currentCategory = "all";
+        const allPill = document.querySelector('.cat-pill[data-category="all"]');
+        if (allPill) {
+          pills.forEach(p => p.classList.remove("active"));
+          allPill.classList.add("active");
+        }
+      }
+    }
+  });
 }
 
 // Render Events Filtered by Category & Search Term
@@ -238,6 +280,7 @@ function renderFallbackEvents() {
       is_ended: false
     }
   ];
+  updateCategoryPills();
   renderEvents();
 }
 
