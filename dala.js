@@ -758,20 +758,35 @@ async function downloadAdminTicketPDF(orderRef) {
     doc.roundedRect(6, 6, 198, 136, 4, 4, "S");
 
     // Brand logo & title
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(26);
-    doc.setFont("helvetica", "bold");
-    doc.text("TIKO", 14, 22);
+    // White logo on dark bg — logo.png is 1024×576 (aspect ~1.78)
+    try {
+      await new Promise((resolve, reject) => {
+        const logoImg = new Image();
+        logoImg.onload = () => {
+          // Place at X=14, Y=8, W=32, H=18
+          doc.addImage(logoImg, "PNG", 14, 8, 32, 18);
+          resolve();
+        };
+        logoImg.onerror = reject;
+        logoImg.src = "assets/logo.png";
+      });
+    } catch (_logoErr) {
+      // Fallback: text TIKO if image fails
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(26);
+      doc.setFont("helvetica", "bold");
+      doc.text("TIKO", 14, 22);
+    }
 
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(167, 139, 250);
-    doc.text("PARTY FOR LESS", 14, 28);
+    doc.text("PARTY FOR LESS", 14, 30);
 
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(148, 163, 184);
-    doc.text("Affordable entertainment — more vibes, less spend", 14, 33);
+    doc.text("Affordable entertainment — more vibes, less spend", 14, 35);
 
     // Verified badge
     doc.setFillColor(16, 185, 129);
