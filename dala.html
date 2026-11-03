@@ -261,6 +261,9 @@
                 <button class="admin-nav-btn" data-tab="tab-promos">
                     🏷️ Promo Codes
                 </button>
+                <button class="admin-nav-btn" data-tab="tab-referrals">
+                    🤝 Referrals
+                </button>
                 <button class="admin-nav-btn" data-tab="tab-admins">
                     👥 Admin Users
                 </button>
@@ -351,8 +354,11 @@
                                         <option value="sports">Sports</option>
                                         <option value="show">Show</option>
                                         <option value="theatre">Theatre</option>
-                                        <option value="other">Other</option>
+                                        <option value="other">Other (specify)</option>
                                     </select>
+                                    <div id="ev-cat-other-wrapper" style="display:none; margin-top: 8px;">
+                                        <input type="text" id="ev-cat-other" placeholder="Specify category (e.g. Comedy, Gala, Workshop)">
+                                    </div>
                                 </div>
                             </div>
 
@@ -371,10 +377,19 @@
                                 </div>
                             </div>
 
-                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                            <div style="display:grid; grid-template-columns: 1.2fr 0.8fr; gap: 16px;">
                                 <div class="form-group">
-                                    <label>Poster Image URL</label>
-                                    <input type="url" id="ev-poster" placeholder="https://images.unsplash.com/...">
+                                    <label>Poster Image (Upload or URL)</label>
+                                    <div style="display:flex; flex-direction:column; gap:8px;">
+                                        <div style="display:flex; gap:8px; align-items:center;">
+                                            <input type="file" id="ev-poster-file" accept="image/*" style="font-size:0.85rem; background:#14141d; border:1px solid var(--border-subtle); border-radius:var(--radius-sm); padding:6px 10px; color:#fff; cursor:pointer;">
+                                            <span id="ev-upload-status" style="font-size:0.8rem; color:#38bdf8; display:none;">Uploading to bucket...</span>
+                                        </div>
+                                        <input type="url" id="ev-poster" placeholder="or enter Image URL (https://...)">
+                                        <div id="ev-poster-preview-box" style="display:none; margin-top:4px;">
+                                            <img id="ev-poster-preview" src="" alt="Poster preview" style="max-height:85px; border-radius:6px; border:1px solid var(--border-subtle); object-fit:cover;">
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="form-group">
                                     <label>Ticketing Model *</label>
@@ -439,9 +454,22 @@
 
                 <!-- 3. ORDERS & PAYMENTS TAB -->
                 <div id="tab-orders" class="admin-tab-pane">
-                    <h2 style="font-family: var(--font-display); font-size: 1.7rem; font-weight: 800; margin-bottom: 20px;">
-                        Orders & M-Pesa Reconciliation
-                    </h2>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+                        <div>
+                            <h2 style="font-family: var(--font-display); font-size: 1.7rem; font-weight: 800;">
+                                Orders & M-Pesa Reconciliation
+                            </h2>
+                            <p style="font-size:0.85rem; color:var(--text-secondary); margin-top:4px;">
+                                View payment status, verified M-Pesa receipts, and detailed failure diagnostic reasons.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Alert box for gateway errors -->
+                    <div id="orders-gateway-alert" style="display:none; background:rgba(239, 68, 68, 0.12); border:1px solid #ef4444; border-radius:var(--radius-md); padding:16px 20px; margin-bottom:20px; color:#fca5a5;">
+                        <strong style="color:#fff; font-size:0.95rem;">⚠️ Payment Gateway Status:</strong>
+                        <div id="orders-gateway-msg" style="font-size:0.85rem; margin-top:4px; line-height:1.4;"></div>
+                    </div>
 
                     <div class="table-responsive">
                         <table class="data-table">
@@ -455,7 +483,7 @@
                                     <th>Qty</th>
                                     <th>Total Paid</th>
                                     <th>M-Pesa Receipt</th>
-                                    <th>Status</th>
+                                    <th>Status & Failure Reason</th>
                                     <th>Date</th>
                                 </tr>
                             </thead>
@@ -520,6 +548,55 @@
                             </thead>
                             <tbody id="promos-list-body">
                                 <tr><td colspan="5" style="text-align:center;">Loading promo codes...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 5. REFERRALS MANAGEMENT TAB -->
+                <div id="tab-referrals" class="admin-tab-pane">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+                        <div>
+                            <h2 style="font-family: var(--font-display); font-size: 1.7rem; font-weight: 800;">
+                                🤝 Customer Referrals
+                            </h2>
+                            <p style="font-size:0.85rem; color:var(--text-secondary); margin-top:4px;">
+                                Reward qualifying customers with ticket discounts on their next booking. <em>(Note: Rewards are applied strictly as discounts on future ticket purchases, not cash/M-Pesa payouts).</em>
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Referral Stats -->
+                    <div class="stats-grid" style="margin-bottom: 24px;">
+                        <div class="stat-card">
+                            <div class="stat-label">Total Referrals</div>
+                            <div class="stat-val blue" id="stat-referrals-total">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Qualified for Discount</div>
+                            <div class="stat-val gold" id="stat-referrals-qualified">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Discounts Applied</div>
+                            <div class="stat-val green" id="stat-referrals-applied">0</div>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Referral Code</th>
+                                    <th>Referrer (Customer)</th>
+                                    <th>Friend / Referee</th>
+                                    <th>Event Booked</th>
+                                    <th>Reward Policy</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="referrals-list-body">
+                                <tr><td colspan="7" style="text-align:center;">Loading customer referrals...</td></tr>
                             </tbody>
                         </table>
                     </div>

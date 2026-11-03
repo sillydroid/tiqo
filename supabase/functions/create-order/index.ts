@@ -356,6 +356,7 @@ serve(async (req: Request) => {
         channel_id: Number(finoqChannelId),
         provider: "m-pesa",
         external_reference: orderRef,
+        customer_name: customer_name.trim(),
         callback_url: callbackUrl
       })
     });
@@ -369,7 +370,12 @@ serve(async (req: Request) => {
     }
 
     if (!finoqResponse.ok || payheroData.success === false || payheroData.error_code) {
-      const errorMsg = payheroData.error_message || payheroData.message || responseText || "Failed to trigger M-Pesa STK push.";
+      const errorMsg = payheroData.error_message || 
+                       payheroData.message || 
+                       payheroData.detail || 
+                       (typeof payheroData.error === 'string' ? payheroData.error : null) || 
+                       responseText || 
+                       "Failed to trigger M-Pesa STK push.";
 
       await supabase.from("orders").update({
         status: "failed",

@@ -752,6 +752,163 @@ serve(async (req: Request) => {
       );
     }
 
+    // =========================================================================
+    // ACTION: UPLOAD EVENT POSTER
+    // =========================================================================
+    if (action === "upload-poster") {
+      const { file_base64, file_name, mime_type } = body;
+      if (!file_base64) {
+        return new Response(
+          JSON.stringify({ success: false, message: "Missing file_base64 payload." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const bucketName = "event-posters";
+      try {
+        await supabase.storage.createBucket(bucketName, { public: true });
+      } catch {
+        // bucket may already exist
+      }
+
+      // Decode base64 to Uint8Array
+      const rawBase64 = file_base64.replace(/^data:[^;]+;base64,/, "");
+      const binaryString = atob(rawBase64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      const cleanName = (file_name || "poster.png").replace(/[^a-zA-Z0-9.-]/g, "_");
+      const storagePath = `posters/${Date.now()}-${cleanName}`;
+      const contentType = mime_type || "image/png";
+
+      const { data: uploadData, error: uploadErr } = await supabase.storage
+        .from(bucketName)
+        .upload(storagePath, bytes, {
+          contentType: contentType,
+          upsert: true
+        });
+
+      if (uploadErr) throw uploadErr;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from(bucketName)
+        .getPublicUrl(storagePath);
+
+      await supabase.from("audit_logs").insert({
+        action: "POSTER_UPLOADED",
+        entity_type: "storage",
+        entity_id: storagePath,
+        details: { publicUrl, fileName: cleanName },
+        performed_by: authenticatedAdmin?.name || "admin"
+      });
+
+      return new Response(
+        JSON.stringify({ success: true, url: publicUrl }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // =========================================================================
+    // ACTION: LIST REFERRALS
+    // =========================================================================
+    if (action === "list-referrals") {
+      const { data: refs, error } = await supabase
+        .from("referrals")
+        .select(`
+          id,
+          referrer_code,
+          referee_order_id,
+          reward_amount,
+          status,
+          admin_notes,
+          created_at,
+          orders!referee_order_id (
+            order_reference,
+            customer_name,
+            customer_email,
+            phone_number,
+            total_amount,
+            created_at,
+            events (name)
+          )
+        `)
+        .order("created_at", { ascending: false })
+        .limit(100);
+
+      if (error) throw error;
+
+      // Fetch referrer order details for each referral
+      const referrerCodes = Array.from(new Set((refs || []).map(r => r.referrer_code)));
+      const referrerMap = new Map();
+      if (referrerCodes.length > 0) {
+        const { data: refOrders } = await supabase
+          .from("orders")
+          .select("order_reference, customer_name, customer_email, phone_number, created_at, events(name)")
+          .in("order_reference", referrerCodes);
+
+        if (refOrders) {
+          refOrders.forEach(o => referrerMap.set(o.order_reference, o));
+        }
+      }
+
+      const formatted = (refs || []).map(r => ({
+        id: r.id,
+        referrer_code: r.referrer_code,
+        reward_amount: r.reward_amount,
+        status: r.status,
+        admin_notes: r.admin_notes,
+        created_at: r.created_at,
+        referrer: referrerMap.get(r.referrer_code) || null,
+        referee: r.orders || null
+      }));
+
+      return new Response(
+        JSON.stringify({ success: true, referrals: formatted }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // =========================================================================
+    // ACTION: UPDATE REFERRAL STATUS (APPLY DISCOUNT ON NEXT TICKET / REVOKE)
+    // =========================================================================
+    if (action === "update-referral") {
+      const { referral_id, status, admin_notes, reward_amount } = body;
+      if (!referral_id || !status) {
+        return new Response(
+          JSON.stringify({ success: false, message: "Missing referral_id or status." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const updateData: any = { status, updated_at: new Date().toISOString() };
+      if (admin_notes !== undefined) updateData.admin_notes = admin_notes;
+      if (reward_amount !== undefined) updateData.reward_amount = Number(reward_amount);
+
+      const { data: updated, error } = await supabase
+        .from("referrals")
+        .update(updateData)
+        .eq("id", referral_id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      await supabase.from("audit_logs").insert({
+        action: "REFERRAL_UPDATED",
+        entity_type: "referrals",
+        entity_id: referral_id,
+        details: { status, admin_notes, reward_amount },
+        performed_by: authenticatedAdmin?.name || "admin"
+      });
+
+      return new Response(
+        JSON.stringify({ success: true, referral: updated, message: `Referral status updated to ${status}.` }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     return new Response(
       JSON.stringify({ success: false, message: `Unknown admin action: ${action}` }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }

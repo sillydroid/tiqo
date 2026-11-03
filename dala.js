@@ -173,6 +173,7 @@ navButtons.forEach(btn => {
     if (btn.dataset.tab === "tab-events") loadEventsList();
     if (btn.dataset.tab === "tab-orders") loadOrdersList();
     if (btn.dataset.tab === "tab-promos") loadPromosList();
+    if (btn.dataset.tab === "tab-referrals") loadReferralsList();
     if (btn.dataset.tab === "tab-admins") loadAdminsList();
     if (btn.dataset.tab === "tab-profile") loadProfileTab();
     if (btn.dataset.tab === "tab-audit") loadAuditLogs();
@@ -268,10 +269,37 @@ window.openEditEvent = function(eventId) {
   document.getElementById("ev-venue").value = ev.venue || "";
   document.getElementById("ev-date").value = ev.event_date || "";
   document.getElementById("ev-time").value = ev.event_time || "";
-  document.getElementById("ev-cat").value = ev.category || "concert";
+  
+  // Handle Category & "Other" specification
+  const standardCats = ["concert", "festival", "sports", "show", "theatre"];
+  const catVal = (ev.category || "concert").toLowerCase();
+  const evCatSelect = document.getElementById("ev-cat");
+  const evCatOtherWrapper = document.getElementById("ev-cat-other-wrapper");
+  const evCatOtherInput = document.getElementById("ev-cat-other");
+
+  if (standardCats.includes(catVal)) {
+    evCatSelect.value = catVal;
+    evCatOtherWrapper.style.display = "none";
+    evCatOtherInput.value = "";
+  } else {
+    evCatSelect.value = "other";
+    evCatOtherWrapper.style.display = "block";
+    evCatOtherInput.value = ev.category || "";
+  }
+
   document.getElementById("ev-model").value = ev.seating_model || "general_admission";
   document.getElementById("ev-poster").value = ev.poster_url || "";
   document.getElementById("ev-desc").value = ev.description || "";
+
+  // Poster preview
+  const posterPreviewBox = document.getElementById("ev-poster-preview-box");
+  const posterPreview = document.getElementById("ev-poster-preview");
+  if (ev.poster_url) {
+    posterPreview.src = ev.poster_url;
+    posterPreviewBox.style.display = "block";
+  } else {
+    posterPreviewBox.style.display = "none";
+  }
 
   catRowsContainer.innerHTML = "";
   const cats = ev.ticket_categories || [];
@@ -284,6 +312,89 @@ window.openEditEvent = function(eventId) {
   createEventPanel.style.display = "block";
   createEventPanel.scrollIntoView({ behavior: "smooth" });
 };
+
+// Toggle "Other" category input
+const evCatSelect = document.getElementById("ev-cat");
+const evCatOtherWrapper = document.getElementById("ev-cat-other-wrapper");
+const evCatOtherInput = document.getElementById("ev-cat-other");
+
+if (evCatSelect) {
+  evCatSelect.addEventListener("change", () => {
+    if (evCatSelect.value === "other") {
+      evCatOtherWrapper.style.display = "block";
+      evCatOtherInput.focus();
+    } else {
+      evCatOtherWrapper.style.display = "none";
+      evCatOtherInput.value = "";
+    }
+  });
+}
+
+// Upload Poster to Supabase Storage Bucket
+const evPosterFileInput = document.getElementById("ev-poster-file");
+const evPosterInput = document.getElementById("ev-poster");
+const evUploadStatus = document.getElementById("ev-upload-status");
+const evPosterPreviewBox = document.getElementById("ev-poster-preview-box");
+const evPosterPreview = document.getElementById("ev-poster-preview");
+
+if (evPosterFileInput) {
+  evPosterFileInput.addEventListener("change", (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      alert("Please select a valid image file (PNG, JPG, WEBP).");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Image file size should be less than 5 MB.");
+      return;
+    }
+
+    evUploadStatus.style.display = "inline";
+    evUploadStatus.textContent = "Uploading to bucket...";
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const base64Data = reader.result;
+        const res = await callAdminApi("upload-poster", {
+          file_base64: base64Data,
+          file_name: file.name,
+          mime_type: file.type
+        });
+
+        if (res.success && res.url) {
+          evPosterInput.value = res.url;
+          evPosterPreview.src = res.url;
+          evPosterPreviewBox.style.display = "block";
+          evUploadStatus.textContent = "✓ Uploaded!";
+          setTimeout(() => { evUploadStatus.style.display = "none"; }, 3500);
+        } else {
+          throw new Error(res.message || "Upload failed.");
+        }
+      } catch (uploadErr) {
+        console.error("Upload error:", uploadErr);
+        evUploadStatus.textContent = "Upload failed: " + uploadErr.message;
+        alert("Image upload failed: " + uploadErr.message);
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+if (evPosterInput) {
+  evPosterInput.addEventListener("input", () => {
+    const val = evPosterInput.value.trim();
+    if (val) {
+      evPosterPreview.src = val;
+      evPosterPreviewBox.style.display = "block";
+    } else {
+      evPosterPreviewBox.style.display = "none";
+    }
+  });
+}
 
 window.togglePublish = async function(eventId, status) {
   try {
@@ -330,6 +441,11 @@ btnShowCreateEvent.addEventListener("click", () => {
   btnSubmitEventForm.textContent = "Publish Event & Tickets";
   createEventForm.reset();
 
+  // Reset custom category & preview
+  if (evCatOtherWrapper) evCatOtherWrapper.style.display = "none";
+  if (evPosterPreviewBox) evPosterPreviewBox.style.display = "none";
+  if (evUploadStatus) evUploadStatus.style.display = "none";
+
   createEventPanel.style.display = "block";
   catRowsContainer.innerHTML = "";
   addCategoryRow("Regular", 2000, 3000, 5000);
@@ -353,7 +469,18 @@ createEventForm.addEventListener("submit", async (e) => {
   const venue = document.getElementById("ev-venue").value.trim();
   const event_date = document.getElementById("ev-date").value;
   const event_time = document.getElementById("ev-time").value.trim();
-  const category = document.getElementById("ev-cat").value;
+  
+  let category = document.getElementById("ev-cat").value;
+  if (category === "other") {
+    const customCat = document.getElementById("ev-cat-other").value.trim();
+    if (!customCat) {
+      alert("Please specify the custom category name (e.g. Comedy, Gala, Workshop).");
+      document.getElementById("ev-cat-other").focus();
+      return;
+    }
+    category = customCat.toLowerCase();
+  }
+
   const seating_model = document.getElementById("ev-model").value;
   const poster_url = document.getElementById("ev-poster").value.trim();
   const description = document.getElementById("ev-desc").value.trim();
@@ -430,15 +557,40 @@ async function loadOrdersList() {
     const data = await callAdminApi("list-orders", { limit: 100 });
     const orders = data.orders || [];
     const tbody = document.getElementById("orders-list-body");
+    const gatewayAlert = document.getElementById("orders-gateway-alert");
+    const gatewayMsg = document.getElementById("orders-gateway-msg");
 
     if (orders.length === 0) {
       tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;">No orders recorded yet.</td></tr>`;
+      if (gatewayAlert) gatewayAlert.style.display = "none";
       return;
+    }
+
+    // Diagnostic check for PayHero account or channel issues
+    const merchantIssueOrder = orders.find(o => 
+      o.status === 'failed' && 
+      o.failure_reason && 
+      (o.failure_reason.toLowerCase().includes("merchant account inactive") || 
+       o.failure_reason.toLowerCase().includes("payhero") || 
+       o.failure_reason.toLowerCase().includes("channel"))
+    );
+
+    if (merchantIssueOrder && gatewayAlert && gatewayMsg) {
+      gatewayAlert.style.display = "block";
+      gatewayMsg.innerHTML = `
+        PayHero returned: <strong style="color:#fff;">"${merchantIssueOrder.failure_reason}"</strong> on recent order <code>${merchantIssueOrder.order_reference}</code>.<br>
+        <strong>Required Action:</strong> Sign in to your PayHero Kenya dashboard (<a href="https://backend.payhero.co.ke" target="_blank" style="color:#38bdf8; text-decoration:underline; font-weight:700;">backend.payhero.co.ke</a>), navigate to <strong>Payment Channels</strong>, ensure your M-Pesa channel is switched to <strong>Active</strong>, and verify your credentials.
+      `;
+    } else if (gatewayAlert) {
+      gatewayAlert.style.display = "none";
     }
 
     tbody.innerHTML = orders.map(ord => {
       const receipt = ord.provider_reference || "—";
       const statusClass = ord.status === 'paid' ? 'paid' : (ord.status === 'pending' ? 'pending' : 'failed');
+      const failureHtml = (ord.status === 'failed' && ord.failure_reason)
+        ? `<div style="color:#f87171; font-size:0.75rem; margin-top:4px; font-weight:600; line-height:1.3; max-width:240px; background:rgba(239,68,68,0.1); padding:4px 8px; border-radius:4px; border:1px solid rgba(239,68,68,0.25);" title="${ord.failure_reason}">⚠️ ${ord.failure_reason}</div>`
+        : '';
 
       return `
         <tr>
@@ -450,7 +602,10 @@ async function loadOrdersList() {
           <td>${ord.quantity}</td>
           <td><strong style="color:#10b981;">${formatKSh(ord.total_amount)}</strong></td>
           <td><span style="font-family:monospace; color:#fbbf24;">${receipt}</span></td>
-          <td><span class="status-pill ${statusClass}">${ord.status}</span></td>
+          <td>
+            <span class="status-pill ${statusClass}">${ord.status.toUpperCase()}</span>
+            ${failureHtml}
+          </td>
           <td><small>${formatDate(ord.created_at)}</small></td>
         </tr>
       `;
@@ -487,6 +642,117 @@ async function loadPromosList() {
     console.error("Error loading promos:", err);
   }
 }
+
+// 8. REFERRALS MANAGEMENT
+async function loadReferralsList() {
+  try {
+    const data = await callAdminApi("list-referrals");
+    const referrals = data.referrals || [];
+    const tbody = document.getElementById("referrals-list-body");
+
+    const totalCount = referrals.length;
+    const qualifiedCount = referrals.filter(r => r.status === 'credited' || r.status === 'qualified').length;
+    const appliedCount = referrals.filter(r => r.status === 'applied').length;
+
+    const statTotal = document.getElementById("stat-referrals-total");
+    const statQual = document.getElementById("stat-referrals-qualified");
+    const statApp = document.getElementById("stat-referrals-applied");
+
+    if (statTotal) statTotal.textContent = totalCount;
+    if (statQual) statQual.textContent = qualifiedCount;
+    if (statApp) statApp.textContent = appliedCount;
+
+    if (!tbody) return;
+
+    if (referrals.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">No customer referrals recorded yet. When customers share their booking references and friends book tickets, they will appear here.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = referrals.map(ref => {
+      const referrerName = ref.referrer?.customer_name || 'Verified Customer';
+      const referrerPhone = ref.referrer?.phone_number || ref.referrer_code;
+      const refereeName = ref.referee?.customer_name || 'Customer';
+      const refereeRef = ref.referee?.order_reference || '—';
+      const eventName = ref.referee?.events?.name || 'Event';
+      const isApplied = ref.status === 'applied';
+
+      const statusBadge = isApplied 
+        ? `<span class="status-pill paid">DISCOUNT APPLIED</span>` 
+        : (ref.status === 'revoked' 
+            ? `<span class="status-pill failed">REVOKED</span>` 
+            : `<span class="status-pill pending">QUALIFIED</span>`);
+
+      return `
+        <tr>
+          <td>
+            <strong style="color:#00f576; font-family:monospace; font-size:1rem;">${ref.referrer_code}</strong>
+          </td>
+          <td>
+            <strong>${referrerName}</strong><br>
+            <small style="color:var(--text-muted);">${referrerPhone}</small>
+          </td>
+          <td>
+            ${refereeName}<br>
+            <small style="color:var(--text-muted); font-family:monospace;">${refereeRef}</small>
+          </td>
+          <td>${eventName}</td>
+          <td>
+            <span style="color:#38bdf8; font-weight:700;">KSh ${Number(ref.reward_amount || 100).toLocaleString()} OFF Next Ticket</span><br>
+            <small style="color:var(--text-muted);">(Ticket Discount)</small>
+          </td>
+          <td>${statusBadge}</td>
+          <td>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+              ${!isApplied ? `
+                <button class="btn btn-primary btn-sm" onclick="applyReferralDiscount('${ref.id}')" title="Approve and mark discount as applied on customer's next booking">
+                  ✓ Apply Discount
+                </button>
+                <button class="btn btn-outline btn-sm" style="color:#ef4444;" onclick="revokeReferralDiscount('${ref.id}')">
+                  Revoke
+                </button>
+              ` : `
+                <span style="color:#10b981; font-size:0.85rem; font-weight:700;">✓ Applied on Ticket</span>
+              `}
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+  } catch (err) {
+    console.error("Error loading referrals:", err);
+  }
+}
+
+window.applyReferralDiscount = async function(referralId) {
+  if (!confirm("Confirm applying this referral discount on customer's next ticket booking?")) return;
+  try {
+    await callAdminApi("update-referral", {
+      referral_id: referralId,
+      status: "applied",
+      admin_notes: "Approved by admin for next ticket discount"
+    });
+    alert("Referral discount successfully applied!");
+    loadReferralsList();
+  } catch (err) {
+    alert("Failed to apply discount: " + err.message);
+  }
+};
+
+window.revokeReferralDiscount = async function(referralId) {
+  if (!confirm("Are you sure you want to revoke this referral credit?")) return;
+  try {
+    await callAdminApi("update-referral", {
+      referral_id: referralId,
+      status: "revoked",
+      admin_notes: "Revoked by admin"
+    });
+    loadReferralsList();
+  } catch (err) {
+    alert("Failed to revoke: " + err.message);
+  }
+};
 
 btnShowCreatePromo.addEventListener("click", () => {
   createPromoPanel.style.display = "block";
