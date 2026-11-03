@@ -109,26 +109,47 @@ async function loadEventData() {
   const orderRef = params.get("ref") || params.get("order") || params.get("order_reference");
   let eventIdOrSlug = params.get("id") || params.get("slug");
 
-  // Check if opening a confirmed ticket pass directly via URL
+  // Step A: If opening with a booking reference (?ref=...)
   if (orderRef) {
     try {
       const res = await fetch(`${CONFIG.SUPABASE_FUNCTIONS_URL}/check-order?reference=${encodeURIComponent(orderRef)}`);
-      const data = await res.json();
-      if (data && data.success && (data.status === "paid" || data.status === "success")) {
-        displaySuccessDigitalTicket(data);
-        if (data.event_slug) {
-          eventIdOrSlug = data.event_slug;
-        } else if (data.event_id) {
-          eventIdOrSlug = data.event_id;
+      const orderData = await res.json();
+
+      if (orderData && orderData.success && (orderData.status === "paid" || orderData.status === "success")) {
+        // Fetch all events to identify the matching event for background rendering
+        try {
+          const eventsRes = await fetch(`${CONFIG.SUPABASE_FUNCTIONS_URL}/list-events`);
+          const eventsData = await eventsRes.json();
+          const allEvents = (eventsData && eventsData.events) || [];
+
+          const matchedEvent = allEvents.find(e => 
+            (orderData.event_slug && e.slug === orderData.event_slug) ||
+            (orderData.event_id && e.id === orderData.event_id) ||
+            (orderData.event_name && e.name.toLowerCase() === orderData.event_name.toLowerCase()) ||
+            (orderData.event_name && (e.name.toLowerCase().includes("mashemeji") && orderData.event_name.toLowerCase().includes("mashemeji"))) ||
+            (orderData.event_name && (e.name.toLowerCase().includes("sol fest") && orderData.event_name.toLowerCase().includes("sol fest")))
+          );
+
+          if (matchedEvent) {
+            currentEvent = matchedEvent;
+            renderEventDetails();
+          }
+        } catch (evErr) {
+          console.warn("Could not fetch events list for order matching:", evErr);
         }
+
+        // Display the live ticket modal
+        displaySuccessDigitalTicket(orderData);
+        return; // Done loading ticket and matched event!
       }
     } catch (err) {
       console.warn("Direct ticket pass lookup failed:", err);
     }
   }
 
+  // Step B: Regular event browsing (by id or slug)
   if (!eventIdOrSlug) {
-    eventIdOrSlug = "ne-yo-live-in-nairobi";
+    eventIdOrSlug = "sol-fest-nairobi-2026";
   }
 
   try {

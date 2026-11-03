@@ -613,9 +613,9 @@ async function loadOrdersList() {
              <button type="button" class="btn btn-sm btn-download-admin-pass" data-ref="${ord.order_reference}" style="padding:4px 8px; font-size:0.75rem; background:rgba(0,245,118,0.15); border:1px solid #00f576; color:#00f576; border-radius:4px; font-weight:700; cursor:pointer;" title="Download PDF Pass">
                📥 PDF
              </button>
-             <a href="event.html?ref=${encodeURIComponent(ord.order_reference)}" target="_blank" style="padding:4px 8px; font-size:0.75rem; background:rgba(56,189,248,0.15); border:1px solid #38bdf8; color:#38bdf8; border-radius:4px; text-decoration:none; font-weight:700; display:inline-block;" title="View Digital Pass">
+             <button type="button" class="btn btn-sm btn-view-admin-pass" data-ref="${ord.order_reference}" style="padding:4px 8px; font-size:0.75rem; background:rgba(56,189,248,0.15); border:1px solid #38bdf8; color:#38bdf8; border-radius:4px; font-weight:700; cursor:pointer;" title="View Digital Pass">
                👁️ View
-             </a>
+             </button>
            </div>`
         : `<span style="color:var(--text-muted); font-size:0.75rem;">—</span>`;
 
@@ -642,7 +642,7 @@ async function loadOrdersList() {
       `;
     }).join('');
 
-    // Attach click listeners to download buttons
+    // Attach click listeners to download and view buttons
     tbody.querySelectorAll(".btn-download-admin-pass").forEach(btn => {
       btn.addEventListener("click", () => {
         const ref = btn.dataset.ref;
@@ -650,9 +650,58 @@ async function loadOrdersList() {
       });
     });
 
+    tbody.querySelectorAll(".btn-view-admin-pass").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const ref = btn.dataset.ref;
+        if (ref) viewAdminTicketPass(ref);
+      });
+    });
+
   } catch (err) {
     console.error("Error loading orders list:", err);
   }
+}
+
+function viewAdminTicketPass(orderRef) {
+  const ord = currentOrdersData.find(o => o.order_reference === orderRef);
+  if (!ord) return;
+
+  const modal = document.getElementById("admin-ticket-preview-modal");
+  if (!modal) return;
+
+  document.getElementById("adm-dt-event").textContent = ord.events?.name || "Tiko Event";
+  document.getElementById("adm-dt-venue-date").textContent = `${formatDate(ord.events?.event_date)} · ${ord.events?.event_time || ''} · ${ord.events?.venue || ''}`;
+  document.getElementById("adm-dt-attendee").textContent = ord.customer_name || "Valued Guest";
+  document.getElementById("adm-dt-category").textContent = ord.ticket_categories?.name || "General Admission";
+  document.getElementById("adm-dt-qty").textContent = ord.quantity;
+  document.getElementById("adm-dt-total").textContent = formatKSh(ord.total_amount);
+  document.getElementById("adm-dt-receipt").textContent = ord.provider_reference || "CONFIRMED";
+  document.getElementById("adm-dt-ref").textContent = ord.order_reference;
+
+  const qrContainer = document.getElementById("adm-dt-qrcode");
+  if (qrContainer) {
+    qrContainer.innerHTML = "";
+    if (window.QRCode) {
+      new QRCode(qrContainer, {
+        text: `${CONFIG.SUPABASE_FUNCTIONS_URL}/check-order?reference=${ord.order_reference}`,
+        width: 140,
+        height: 140,
+        correctLevel: QRCode.CorrectLevel.H
+      });
+    }
+  }
+
+  const btnDownload = document.getElementById("btn-adm-modal-download");
+  if (btnDownload) {
+    btnDownload.onclick = () => downloadAdminTicketPDF(ord.order_reference);
+  }
+
+  const linkPublic = document.getElementById("link-adm-modal-public");
+  if (linkPublic) {
+    linkPublic.href = `event.html?ref=${encodeURIComponent(ord.order_reference)}&id=${encodeURIComponent(ord.event_id || '')}`;
+  }
+
+  modal.style.display = "flex";
 }
 
 async function downloadAdminTicketPDF(orderRef) {
@@ -1172,6 +1221,17 @@ async function loadAuditLogs() {
 
 // Auto-login on load if session exists
 document.addEventListener("DOMContentLoaded", () => {
+  const btnCloseModal = document.getElementById("btn-close-admin-ticket-modal");
+  const adminModal = document.getElementById("admin-ticket-preview-modal");
+  if (btnCloseModal && adminModal) {
+    btnCloseModal.addEventListener("click", () => {
+      adminModal.style.display = "none";
+    });
+    adminModal.addEventListener("click", (e) => {
+      if (e.target === adminModal) adminModal.style.display = "none";
+    });
+  }
+
   if (adminToken) {
     showDashboard();
   } else {
